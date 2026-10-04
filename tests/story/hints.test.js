@@ -18,7 +18,7 @@ describe('checkHints', () => {
 
   it('fires once, records it, sets its flag and emits', () => {
     const s = createState();
-    const bus = createBus();
+    const bus = createBus({ onError: (error) => { throw error; } });
     const seen = [];
     bus.on('hint', (h) => seen.push(h));
     s.hinala = 2;
@@ -32,7 +32,7 @@ describe('checkHints', () => {
 
   it('fires several hints in one call, returned and emitted in order', () => {
     const s = createState();
-    const bus = createBus();
+    const bus = createBus({ onError: (error) => { throw error; } });
     const seen = [];
     bus.on('hint', (h) => seen.push(h.id));
     s.hinala = 2;
@@ -53,7 +53,7 @@ describe('checkHints', () => {
   it('fires a hint exactly when a dialogue ends, via its seen: flag', () => {
     const dialogue = { id: 'chat', start: 'a', nodes: { a: { who: 'isabel', text: 'Hi', next: 'b' }, b: { who: 'isabel', text: 'Bye', next: null } } };
     const state = createState();
-    const bus = createBus();
+    const bus = createBus({ onError: (error) => { throw error; } });
     const order = [];
     bus.on('*', (e) => order.push(e.type));
     const ctx = { state, bus, hints: [{ id: 'h', if: { flag: seenFlag('chat') }, journal: 'x' }] };

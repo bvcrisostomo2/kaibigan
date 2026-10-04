@@ -223,7 +223,7 @@ describe('stateFromCode', () => {
     expect(s.hintsShown).toContain('eyes');
     expect(s.flags).toContain('guardia_watching');
 
-    const bus = createBus();
+    const bus = createBus({ onError: (error) => { throw error; } });
     const events = [];
     bus.on('*', (e) => events.push(e.type));
     applyEffects({ state: s, bus, hints: [eyes] }, { tiwala: 1 });

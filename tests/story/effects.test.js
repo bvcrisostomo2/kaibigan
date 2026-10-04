@@ -4,7 +4,7 @@ import { createState } from '../../src/story/state.js';
 import { createBus } from '../../src/story/events.js';
 
 function makeCtx(hints = []) {
-  const bus = createBus();
+  const bus = createBus({ onError: (error) => { throw error; } });
   const events = [];
   bus.on('*', (e) => events.push(e.type));
   return { ctx: { state: createState(), bus, hints }, events };
@@ -37,7 +37,7 @@ describe('applyEffects', () => {
   });
 
   it('emits state:changed without exposing meter values', () => {
-    const bus = createBus();
+    const bus = createBus({ onError: (error) => { throw error; } });
     const payloads = [];
     bus.on('state:changed', (p) => payloads.push(p));
     applyEffects({ state: createState(), bus, hints: [] }, { tiwala: 1 });

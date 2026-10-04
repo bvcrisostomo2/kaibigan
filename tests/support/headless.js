@@ -4,7 +4,7 @@ import { createBus } from '../../src/story/events.js';
 import { createDirector } from '../../src/story/director.js';
 
 export function createHeadlessGame({ chapter, state, hints = [], chooser = () => 0 }) {
-  const bus = createBus();
+  const bus = createBus({ onError: (error) => { throw error; } });
   const ctx = { state, bus, hints };
   const log = [];
   const host = {

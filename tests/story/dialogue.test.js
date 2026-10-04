@@ -25,7 +25,7 @@ const def = {
 
 function makeCtx() {
   const state = createState({ name: 'Andres', title: 'Don' });
-  return { state, bus: createBus(), hints: [] };
+  return { state, bus: createBus({ onError: (error) => { throw error; } }), hints: [] };
 }
 
 describe('createDialogue', () => {

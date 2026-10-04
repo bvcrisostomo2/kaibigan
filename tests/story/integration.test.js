@@ -122,6 +122,7 @@ describe('trackCheckpointCodes', () => {
     tracker.stop();
     await g.director.interact('isabel'); // chains into checkpoint 2
     expect(g.director.beat).not.toBe('arrive');
+    expect(g.state.checkpoint).toBe(2);
     expect(tracker.latest).toBe(first);
   });
 });

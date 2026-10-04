@@ -22,7 +22,7 @@ function headless(chapter) {
 // director can be observed mid-cutscene. Dialogues auto-play like the headless host.
 function manualGame(chapter) {
   const state = createState({ name: 'Andres' });
-  const bus = createBus();
+  const bus = createBus({ onError: (error) => { throw error; } });
   const ctx = { state, bus, hints: [] };
   const log = [];
   const pending = [];
