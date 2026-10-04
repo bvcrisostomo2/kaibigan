@@ -6,7 +6,7 @@ export const CODE_LAYOUTS = Object.freeze({
     checkpointBits: 6,
     meterBits: 5, // tiwala and hinala, clamped to -16..15
     affinityBits: 3, // clamped to -4..3
-    flags: [
+    flags: Object.freeze([
       'ch1_defied_damaso',
       'ch1_tactful',
       'ch1_silent',
@@ -15,9 +15,9 @@ export const CODE_LAYOUTS = Object.freeze({
       'ch1_defended_indios',
       'ch1_sided_damaso',
       'guardia_watching',
-    ],
-    affinity: ['guevarra', 'isabel', 'tiago', 'sibyla', 'victorina'],
-    notes: [
+    ]),
+    affinity: Object.freeze(['guevarra', 'isabel', 'tiago', 'sibyla', 'victorina']),
+    notes: Object.freeze([
       'note_friars',
       'note_guardia_civil',
       'note_bahay_na_bato',
@@ -26,7 +26,7 @@ export const CODE_LAYOUTS = Object.freeze({
       'note_principalia',
       'note_tinola',
       'note_rizal_europe',
-    ],
+    ]),
   }),
 });
 

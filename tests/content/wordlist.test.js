@@ -28,4 +28,19 @@ describe('save-code word list', () => {
   it('is frozen', () => {
     expect(Object.isFrozen(WORDS)).toBe(true);
   });
+
+  // GOLDEN: the word order IS the encoding. If this fails, every written-down code would
+  // break. Never update these expected values; add a new layout version instead.
+  it('is pinned: anchor words and a hash of the whole ordered list', () => {
+    expect(WORDS[0]).toBe('abo');
+    expect(WORDS[254]).toBe('lumpia');
+    expect(WORDS[508]).toBe('yugto');
+    // FNV-1a 32-bit over the comma-joined list.
+    let hash = 0x811c9dc5;
+    for (const ch of WORDS.join(',')) {
+      hash ^= ch.charCodeAt(0);
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    expect(hash).toBe(760418573);
+  });
 });

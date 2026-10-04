@@ -87,6 +87,19 @@ describe('encodeCode / decodeCode', () => {
     const code = encodeCode(sampleState());
     const messy = '  ' + code.toUpperCase().split(' ').join(' ,  - ') + '!! ';
     expect(decodeCode(messy).ok).toBe(true);
+    expect(decodeCode(messy).corrected).toEqual([]);
+
+    // Accents are stripped before matching: 'á' reads as 'a', 'ñ' as 'n'.
+    const words = code.split(' ');
+    expect(words[1]).toBe('siyam');
+    expect(words[5]).toBe('bangus');
+    const accented = [...words];
+    accented[1] = 'siyám';
+    accented[5] = 'bañgus';
+    const r = decodeCode(accented.join(' '));
+    expect(r.ok).toBe(true);
+    expect(r.corrected).toEqual([]);
+    expect(r.data).toEqual(decodeCode(code).data);
   });
 });
 
@@ -121,6 +134,26 @@ describe('error detection', () => {
     const bad = [...code];
     bad[3] = 'xyzzy';
     expect(decodeCode(bad.join(' '))).toEqual({ ok: false, error: { kind: 'unknownWord', word: 'xyzzy', position: 4, candidates: [] } });
+  });
+
+  it('reports an ambiguous word with its position and candidates', () => {
+    const bad = [...code];
+    bad[3] = 'kala'; // prefix of kalabasa, kalabaw, kalamba, ...
+    const r = decodeCode(bad.join(' '));
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatchObject({ kind: 'ambiguousWord', word: 'kala', position: 4 });
+    expect(r.error.candidates).toEqual(['kalabasa', 'kalabaw', 'kalamba', 'kalapati', 'kalaw']);
+  });
+
+  it('reports a checksum-valid code from a newer layout as newerVersion', () => {
+    // The low 4 bits of the first (least significant) payload digit hold the version.
+    const payload = [2, 0, 0, 0, 0, 0];
+    const partial = payload.reduce((sum, d, i) => (sum + (i + 1) * d) % 509, 0);
+    let check = -1;
+    for (let c = 0; c < 509; c++) if ((partial + (payload.length + 1) * c) % 509 === 0) check = c;
+    expect(check).toBeGreaterThanOrEqual(0);
+    const text = [...payload, check].map((d) => WORDS[d]).join(' ');
+    expect(decodeCode(text)).toEqual({ ok: false, error: { kind: 'newerVersion' } });
   });
 
   it('reports a missing word as a length or checksum error', () => {
@@ -166,5 +199,133 @@ describe('stateFromCode', () => {
     expect(s.flags).toEqual(['ch1_defied_damaso', 'ch1_honest', 'seen:greet']);
     expect(s.notes).toEqual(['note_indio', 'note_tinola']);
     expect(s.affinity).toEqual({ guevarra: 2, isabel: -1 });
+  });
+
+  it('never lets restore flags override a choice the code stores', () => {
+    const state = sampleState();
+    state.flags = ['ch1_honest']; // ch1_tactful is unset in the code
+    const { data } = decodeCode(encodeCode(state));
+    expect(data.flags).not.toContain('ch1_tactful');
+    const s = stateFromCode(data, 'Maria', { flags: ['ch1_tactful', 'seen:greet'] });
+    expect(s.flags).toContain('seen:greet');
+    expect(s.flags).not.toContain('ch1_tactful');
+    expect(s.flags).toContain('ch1_honest');
+  });
+});
+
+describe('code layout is deeply frozen', () => {
+  it.each(['flags', 'affinity', 'notes'])('freezes layout 1 %s', (key) => {
+    expect(Object.isFrozen(CODE_LAYOUTS[1][key])).toBe(true);
+  });
+});
+
+// GOLDEN VECTORS. These pin the exact encoding students have written down. If one fails,
+// an existing code would break. Never "fix" a golden test by updating its expected value:
+// add a new layout version instead (old versions must keep decoding forever).
+describe('frozen encoding (golden vectors)', () => {
+  it('encodes the sample state to the exact original code', () => {
+    expect(encodeCode(sampleState())).toBe('bibig siyam bigay sorbetes lipad bangus bayabas');
+  });
+
+  it('decodes the sample code to the exact original data', () => {
+    expect(decodeCode('bibig siyam bigay sorbetes lipad bangus bayabas')).toEqual({
+      ok: true,
+      corrected: [],
+      data: {
+        version: 1,
+        checkpoint: 3,
+        title: 'Doña',
+        tiwala: 4,
+        hinala: -2,
+        flags: ['ch1_defied_damaso', 'ch1_honest'],
+        affinity: { guevarra: 2, isabel: -1 },
+        notes: ['note_indio', 'note_tinola'],
+      },
+    });
+  });
+
+  it('decodes a full state (all flags, notes, affinities, Doña, clamped extremes)', () => {
+    const full = createState({ title: 'Doña' });
+    full.checkpoint = 63;
+    full.tiwala = 99;
+    full.hinala = -99;
+    full.flags = [...layout.flags];
+    full.affinity = { guevarra: 10, isabel: -10, tiago: 1, sibyla: -1, victorina: 2 };
+    full.notes = [...layout.notes];
+    const code = 'aklat sinag tamis bundok poso hangin buhangin';
+    expect(encodeCode(full)).toBe(code);
+    expect(decodeCode(code)).toEqual({
+      ok: true,
+      corrected: [],
+      data: {
+        version: 1,
+        checkpoint: 63,
+        title: 'Doña',
+        tiwala: 15,
+        hinala: -16,
+        flags: [
+          'ch1_defied_damaso',
+          'ch1_tactful',
+          'ch1_silent',
+          'ch1_honest',
+          'ch1_hid_truth',
+          'ch1_defended_indios',
+          'ch1_sided_damaso',
+          'guardia_watching',
+        ],
+        affinity: { guevarra: 3, isabel: -4, tiago: 1, sibyla: -1, victorina: 2 },
+        notes: [
+          'note_friars',
+          'note_guardia_civil',
+          'note_bahay_na_bato',
+          'note_binondo',
+          'note_indio',
+          'note_principalia',
+          'note_tinola',
+          'note_rizal_europe',
+        ],
+      },
+    });
+  });
+
+  it('decodes the minimal state (all defaults, checkpoint 1)', () => {
+    const minimal = createState();
+    minimal.checkpoint = 1;
+    const code = 'kampana tagumpay bili sahig ikot abo burol';
+    expect(encodeCode(minimal)).toBe(code);
+    expect(decodeCode(code)).toEqual({
+      ok: true,
+      corrected: [],
+      data: { version: 1, checkpoint: 1, title: 'Don', tiwala: 0, hinala: 0, flags: [], affinity: {}, notes: [] },
+    });
+  });
+
+  it('pins layout 1 exactly', () => {
+    expect(CODE_LAYOUTS[1]).toEqual({
+      checkpointBits: 6,
+      meterBits: 5,
+      affinityBits: 3,
+      flags: [
+        'ch1_defied_damaso',
+        'ch1_tactful',
+        'ch1_silent',
+        'ch1_honest',
+        'ch1_hid_truth',
+        'ch1_defended_indios',
+        'ch1_sided_damaso',
+        'guardia_watching',
+      ],
+      affinity: ['guevarra', 'isabel', 'tiago', 'sibyla', 'victorina'],
+      notes: [
+        'note_friars',
+        'note_guardia_civil',
+        'note_bahay_na_bato',
+        'note_binondo',
+        'note_indio',
+        'note_principalia',
+        'note_tinola',
+        'note_rizal_europe',
+      ],
+    });
   });
 });

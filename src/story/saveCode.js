@@ -173,12 +173,15 @@ export function decodeCode(input) {
 }
 
 // Builds a fresh state from decoded data. `restore` is the checkpoint beat's
-// { flags, bios } — story progress implied by reaching that checkpoint.
+// { flags, bios } — story progress implied by reaching that checkpoint. Flags the code's
+// layout stores are authoritative: a restore flag with the same id is ignored, so a choice
+// the code recorded as unset can never be switched on. Other restore flags are added.
 export function stateFromCode(data, name, restore = {}) {
   const state = createState({ name, title: data.title });
   state.tiwala = data.tiwala;
   state.hinala = data.hinala;
-  state.flags = [...data.flags, ...(restore.flags ?? []).filter((f) => !data.flags.includes(f))];
+  const stored = CODE_LAYOUTS[data.version].flags;
+  state.flags = [...data.flags, ...(restore.flags ?? []).filter((f) => !stored.includes(f))];
   state.affinity = { ...data.affinity };
   state.notes = [...data.notes];
   state.bios = [...(restore.bios ?? [])];
