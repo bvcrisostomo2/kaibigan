@@ -102,4 +102,33 @@ describe('createDialogue', () => {
   it('throws on a missing node', () => {
     expect(() => createDialogue({ id: 'bad', start: 'nope', nodes: {} }, makeCtx())).toThrow("node 'nope' not found");
   });
+
+  it("emits dialogue events keyed by 'id'", () => {
+    const ctx = makeCtx();
+    const events = [];
+    ctx.bus.on('*', (e) => events.push([e.type, e.payload]));
+    const d = createDialogue(def, ctx);
+    d.advance();
+    d.choose(1);
+    expect(events.filter(([t]) => t.startsWith('dialogue:'))).toEqual([
+      ['dialogue:node', { id: 'damaso_test', node: 'a' }],
+      ['dialogue:node', { id: 'damaso_test', node: 'c' }],
+      ['dialogue:choice', { id: 'damaso_test', node: 'c', index: 1 }],
+      ['dialogue:end', { id: 'damaso_test' }],
+    ]);
+  });
+
+  it('sets the seen flag through applyEffects, so state:changed fires and hints are checked', () => {
+    const ctx = makeCtx();
+    ctx.hints = [{ id: 'h', if: { flag: seenFlag('damaso_test') }, journal: 'x' }];
+    const order = [];
+    ctx.bus.on('*', (e) => order.push(e.type));
+    const d = createDialogue(def, ctx);
+    d.advance();
+    expect(ctx.state.hintsShown).toEqual([]);
+    order.length = 0;
+    d.choose(1); // 'Stay silent.' ends the dialogue
+    expect(ctx.state.hintsShown).toEqual(['h']);
+    expect(order.slice(-3)).toEqual(['state:changed', 'hint', 'dialogue:end']);
+  });
 });

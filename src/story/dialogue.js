@@ -6,7 +6,6 @@
 import { evaluate } from './conditions.js';
 import { applyEffects } from './effects.js';
 import { parseText } from './text.js';
-import { addUnique } from './state.js';
 
 // Flag set automatically when a dialogue finishes, e.g. 'seen:isabel_greet'.
 export function seenFlag(dialogueId) {
@@ -33,12 +32,13 @@ export function createDialogue(def, ctx) {
       }
       nodeId = id;
       applyEffects(ctx, node.effects);
-      bus?.emit('dialogue:node', { dialogue: def.id, node: id });
+      bus?.emit('dialogue:node', { id: def.id, node: id });
       return;
     }
     nodeId = null;
     done = true;
-    addUnique(state.flags, seenFlag(def.id));
+    // Through applyEffects so state:changed fires and hints watching 'seen:<id>' are checked.
+    applyEffects(ctx, { flag: seenFlag(def.id) });
     bus?.emit('dialogue:end', { id: def.id });
   }
 
@@ -73,7 +73,7 @@ export function createDialogue(def, ctx) {
       const node = def.nodes[nodeId];
       const choice = node.choices ? visibleChoices(node)[index] : undefined;
       if (!choice) throw new Error(`Dialogue ${def.id}: no choice ${index} at '${nodeId}'`);
-      bus?.emit('dialogue:choice', { dialogue: def.id, node: nodeId, index });
+      bus?.emit('dialogue:choice', { id: def.id, node: nodeId, index });
       applyEffects(ctx, choice.effects);
       enter(choice.next ?? null);
     },
