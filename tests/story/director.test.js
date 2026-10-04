@@ -206,6 +206,18 @@ describe('director: branches and chapter end', () => {
     await g.director.interact('isabel');
     expect(g.director.ended).toBe(true);
   });
+
+  it('rejects an unknown beat without un-ending the chapter or touching state', async () => {
+    const g = game(() => 2);
+    await g.director.start();
+    await g.director.interact('isabel');
+    expect(g.director.ended).toBe(true);
+    const before = JSON.stringify(g.state);
+    await expect(g.director.start('nope')).rejects.toThrow("Beat 'nope' not found");
+    expect(g.director.ended).toBe(true);
+    expect(g.director.busy).toBe(false);
+    expect(JSON.stringify(g.state)).toBe(before);
+  });
 });
 
 describe('director: jumps, next overrides and effects', () => {

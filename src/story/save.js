@@ -1,4 +1,4 @@
-// Autosave to a Storage-like object (window.localStorage in the browser).
+// Autosave to a Storage-like object (the browser's localStorage).
 // Every call is wrapped so private windows and blocked storage never crash the game.
 import { serialize, deserialize } from './state.js';
 

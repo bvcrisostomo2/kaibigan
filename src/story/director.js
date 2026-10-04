@@ -13,8 +13,23 @@
 //   host.run(action) → Promise   for HOST_ACTIONS, e.g. ['moveTo', 'tiago', 'sala_door']
 //   host.runDialogue(runner) → Promise, resolved once runner.done is true
 //
-// start() rejects with 'Director is busy' if a sequence is running, and resets `ended`
-// so a finished chapter can be restarted.
+// start() rejects with 'Director is busy' if a sequence is running, and with
+// "Beat '<id>' not found" for an unknown beat (state and `ended` stay untouched). A valid
+// start() resets `ended` so a finished chapter can be restarted.
+//
+// Saving and resuming:
+//  - Autosave only on 'beat:enter'. It fires before the beat's actions run, which is what
+//    replay-on-resume needs: resuming calls start(state.beat), which runs that beat's actions
+//    again. Saving at any other moment would double-apply a beat's actions on resume.
+//  - Resuming an autosave uses start(state.beat). If that beat no longer exists (content
+//    changed between versions), fall back to findCheckpoint(chapters, state.checkpoint) or
+//    discard the save; start() rejects rather than guessing.
+//  - findCheckpoint() returns null for an unknown checkpoint number.
+//  - Save codes are produced by saveCode.trackCheckpointCodes(), never mid-beat.
+//
+// Render loop: update() and interact() return promises that resolve only after a whole
+// cutscene has played, and they may reject (bad content, host failure). The render loop must
+// not await them (it would stall the frame) and must attach .catch to them.
 import { evaluate } from './conditions.js';
 import { applyEffects } from './effects.js';
 import { createDialogue } from './dialogue.js';
@@ -153,10 +168,12 @@ export function createDirector({ chapter, ctx, host }) {
     get beatTime() { return beatTime; },
 
     // Enter a beat (default: the chapter's start beat). Resolves when its actions finish.
-    // Rejects with 'Director is busy' if a sequence is already running. Clears `ended`, so a
+    // Rejects with 'Director is busy' if a sequence is already running, or if the beat does not
+    // exist (checked before anything changes). Clears `ended`, so a
     // director can be restarted after a chapter ends (the player's zone persists).
     start(beatId = chapter.startBeat) {
       if (busy) return Promise.reject(new Error('Director is busy'));
+      if (!beats.has(beatId)) return Promise.reject(new Error(`Beat '${beatId}' not found`));
       ended = false;
       return sequence(() => enterBeat(beatId));
     },
