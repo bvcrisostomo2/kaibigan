@@ -7,6 +7,7 @@
 import { WORDS } from '../content/wordlist.js';
 import { CODE_LAYOUTS, CURRENT_LAYOUT } from '../content/codeLayout.js';
 import { createState } from './state.js';
+import { checkHints } from './hints.js';
 
 const MOD = 509;
 const BASE = 509n;
@@ -176,7 +177,9 @@ export function decodeCode(input) {
 // { flags, bios } — story progress implied by reaching that checkpoint. Flags the code's
 // layout stores are authoritative: a restore flag with the same id is ignored, so a choice
 // the code recorded as unset can never be switched on. Other restore flags are added.
-export function stateFromCode(data, name, restore = {}) {
+// `hints` (optional) are checked once with no bus: hints whose conditions already hold are
+// marked shown silently, so they do not re-fire the moment the player resumes.
+export function stateFromCode(data, name, restore = {}, hints = []) {
   const state = createState({ name, title: data.title });
   state.tiwala = data.tiwala;
   state.hinala = data.hinala;
@@ -186,5 +189,29 @@ export function stateFromCode(data, name, restore = {}) {
   state.notes = [...data.notes];
   state.bios = [...(restore.bios ?? [])];
   state.checkpoint = data.checkpoint;
+  checkHints(state, hints);
   return state;
+}
+
+// Tracks the save code for the player's latest checkpoint. The story layer owns this because
+// loading a code replays the checkpoint beat's actions (director.start(beat.id)), so a code is
+// only valid if it was encoded at beat entry. Codes must only be produced at a checkpoint,
+// never mid-beat. The UI displays `latest` and never receives state or decoded data.
+//
+//   const codes = trackCheckpointCodes(ctx);
+//   codes.latest   // string | null: null until the first checkpoint is reached
+//   codes.stop();  // unsubscribe
+export function trackCheckpointCodes(ctx) {
+  let latest = null;
+  const off = ctx.bus.on('checkpoint', () => {
+    latest = encodeCode(ctx.state);
+  });
+  return {
+    get latest() {
+      return latest;
+    },
+    stop() {
+      off();
+    },
+  };
 }

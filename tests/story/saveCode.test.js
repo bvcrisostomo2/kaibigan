@@ -3,6 +3,8 @@ import { encodeCode, decodeCode, matchWord, stateFromCode, codeLength, levenshte
 import { WORDS } from '../../src/content/wordlist.js';
 import { CODE_LAYOUTS } from '../../src/content/codeLayout.js';
 import { createState } from '../../src/story/state.js';
+import { createBus } from '../../src/story/events.js';
+import { applyEffects } from '../../src/story/effects.js';
 
 const layout = CODE_LAYOUTS[1];
 
@@ -210,6 +212,28 @@ describe('stateFromCode', () => {
     expect(s.flags).toContain('seen:greet');
     expect(s.flags).not.toContain('ch1_tactful');
     expect(s.flags).toContain('ch1_honest');
+  });
+
+  it('marks already-true hints as shown, silently, so they do not re-fire after a load', () => {
+    const state = createState();
+    state.hinala = 2;
+    const { data } = decodeCode(encodeCode(state));
+    const eyes = { id: 'eyes', if: { hinalaAtLeast: 2 }, journal: 'You sense eyes on you.', setFlag: 'guardia_watching' };
+    const s = stateFromCode(data, 'Maria', {}, [eyes]);
+    expect(s.hintsShown).toContain('eyes');
+    expect(s.flags).toContain('guardia_watching');
+
+    const bus = createBus();
+    const events = [];
+    bus.on('*', (e) => events.push(e.type));
+    applyEffects({ state: s, bus, hints: [eyes] }, { tiwala: 1 });
+    expect(events).toEqual(['state:changed']);
+  });
+
+  it('leaves hints whose conditions do not hold yet unshown', () => {
+    const { data } = decodeCode(encodeCode(createState()));
+    const s = stateFromCode(data, 'Maria', {}, [{ id: 'eyes', if: { hinalaAtLeast: 2 }, journal: 'x' }]);
+    expect(s.hintsShown).toEqual([]);
   });
 });
 
