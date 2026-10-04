@@ -72,6 +72,7 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
   };
 
   const checkpoints = new Map();
+  const restoreFlags = [];
 
   for (const ch of chapters) {
     const dialogueIds = new Set(Object.keys(ch.dialogues));
@@ -141,6 +142,7 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
         checkpoints.set(b.checkpoint, b.id);
       }
       (b.restore?.bios ?? []).forEach((id) => castIds.has(id) || errors.push(`${where}.restore: bio cast '${id}' not found`));
+      (b.restore?.flags ?? []).forEach((flag) => restoreFlags.push({ flag, where }));
     }
   }
 
@@ -168,6 +170,10 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
     }
     for (const f of flagsSet) {
       if (PERSISTENT_FLAG.test(f) && !stored.has(f)) errors.push(`flag '${f}' is a persistent choice but no code layout stores it`);
+    }
+    // Stored flags come from the save code itself; listing them in a beat's restore is a content mistake.
+    for (const { flag, where } of restoreFlags) {
+      if (stored.has(flag)) errors.push(`${where}.restore: flag '${flag}' is stored in save codes; remove it from restore`);
     }
   }
 

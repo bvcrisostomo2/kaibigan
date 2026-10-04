@@ -84,6 +84,14 @@ describe('validateContent', () => {
       expect(validateContent(base({ codeLayouts: { 1: extra } })).errors).toContain("code layout 1: flag 'ch1_ghost' is never set by content");
     });
 
+    it('reports restore flags that save codes already store', () => {
+      const content = base({ codeLayouts: { 1: layout } });
+      content.chapters[0].beats[1].restore = { flags: ['seen:greet', 'ch1_tactful'] };
+      const { errors } = validateContent(content);
+      expect(errors).toContain("beat 'dinner'.restore: flag 'ch1_tactful' is stored in save codes; remove it from restore");
+      expect(errors.some((e) => e.includes("'seen:greet'"))).toBe(false);
+    });
+
     it('reports unknown affinity cast and notes', () => {
       const bad = { ...layout, affinity: ['nobody'], notes: ['nope'] };
       const { errors } = validateContent(base({ codeLayouts: { 1: bad } }));
