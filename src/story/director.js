@@ -12,6 +12,9 @@
 // The host performs everything visual and drives dialogues:
 //   host.run(action) → Promise   for HOST_ACTIONS, e.g. ['moveTo', 'tiago', 'sala_door']
 //   host.runDialogue(runner) → Promise, resolved once runner.done is true
+//
+// start() rejects with 'Director is busy' if a sequence is running, and resets `ended`
+// so a finished chapter can be restarted.
 import { evaluate } from './conditions.js';
 import { applyEffects } from './effects.js';
 import { createDialogue } from './dialogue.js';
@@ -150,7 +153,11 @@ export function createDirector({ chapter, ctx, host }) {
     get beatTime() { return beatTime; },
 
     // Enter a beat (default: the chapter's start beat). Resolves when its actions finish.
+    // Rejects with 'Director is busy' if a sequence is already running. Clears `ended`, so a
+    // director can be restarted after a chapter ends (the player's zone persists).
     start(beatId = chapter.startBeat) {
+      if (busy) return Promise.reject(new Error('Director is busy'));
+      ended = false;
       return sequence(() => enterBeat(beatId));
     },
 
