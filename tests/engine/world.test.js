@@ -36,8 +36,10 @@ describe('buildWorld', () => {
     expect(world.collision.blocked(1, -4, 0)).toBe(false);
   });
 
-  it('collects occluders: walls (unless occluder: false) and roof panels', () => {
-    expect(world.occluders).toHaveLength(1 + 1 + 2);
+  it('collects occluders: walls (unless occluder: false), roof panels and windows', () => {
+    expect(world.occluders).toHaveLength(1 + 1 + 2 + 1);
+    const windowMesh = world.occluders.find((o) => world.windowMaterials.includes(o.material));
+    expect(windowMesh).toBeDefined();
     for (const o of world.occluders) expect(o.userData.occluder).toBe(true);
   });
 
@@ -70,5 +72,19 @@ describe('buildWorld', () => {
   it('passes zones through', () => {
     expect(world.zones.street).toEqual(level.zones.street);
     expect(world.collision.zonesAt(5, 5, 0)).toEqual(['street']);
+  });
+});
+
+describe('buildWorld level checks', () => {
+  const stair = { x: 4, z: 4, w: 2, d: 2, y0: 0, y1: 3, dir: 'n', tex: 'narra' };
+
+  it('rejects a floor that hides a stair ramp at its base height', () => {
+    const floors = [{ x: 0, z: 0, w: 10, d: 10, y: 0, tex: 'cobble' }];
+    expect(() => buildWorld({ floors, stairs: [stair] })).toThrow('overlaps the stair at x 4, z 4 at its base');
+  });
+
+  it('rejects a floor that blocks the way down at a stair top height', () => {
+    const floors = [{ x: 0, z: 6, w: 10, d: 4, y: 0, tex: 'cobble' }, { x: 0, z: 0, w: 10, d: 4.5, y: 3, tex: 'narra' }];
+    expect(() => buildWorld({ floors, stairs: [stair] })).toThrow('overlaps the stair at x 4, z 4 at its top');
   });
 });

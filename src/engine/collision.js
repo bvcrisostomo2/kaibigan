@@ -22,6 +22,23 @@ export function stairHeight(s, x, z) {
   return s.y0 + (s.y1 - s.y0) * Math.max(0, Math.min(1, t));
 }
 
+// Floors at a stair's base or top height whose rectangle overlaps the stair's footprint.
+// Collision keeps actors at the nearest height, so such a floor hides the ramp going up (base)
+// or blocks the way down (top). Returns [{ floor, stair, end: 'base' | 'top' }].
+export function stairFloorOverlaps({ floors = [], stairs = [] }) {
+  const found = [];
+  for (const stair of stairs) {
+    for (const floor of floors) {
+      const end = floor.y === stair.y0 ? 'base' : floor.y === stair.y1 ? 'top' : null;
+      if (!end) continue;
+      const overlapX = Math.min(floor.x + floor.w, stair.x + stair.w) - Math.max(floor.x, stair.x);
+      const overlapZ = Math.min(floor.z + floor.d, stair.z + stair.d) - Math.max(floor.z, stair.z);
+      if (overlapX > 0 && overlapZ > 0) found.push({ floor, stair, end });
+    }
+  }
+  return found;
+}
+
 export function createCollision(level) {
   const floors = level.floors ?? [];
   const stairs = level.stairs ?? [];

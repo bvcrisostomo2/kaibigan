@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createCollision, stairHeight, STEP } from '../../src/engine/collision.js';
+import { createCollision, stairHeight, stairFloorOverlaps, STEP } from '../../src/engine/collision.js';
 
 // Street (y 0) south of a house; a stair ramp climbs north to an upper floor (y 3).
 const level = {
@@ -93,5 +93,29 @@ describe('createCollision', () => {
 
   it('keeps the step limit small enough to stop climbing walls', () => {
     expect(STEP).toBeLessThan(1);
+  });
+});
+
+describe('stairFloorOverlaps', () => {
+  it("finds floors at a stair's base or top height that overlap its ramp", () => {
+    const stair = { x: 4, z: 4, w: 2, d: 2, y0: 0, y1: 3, dir: 'n' };
+    const base = { x: 3, z: 5, w: 4, d: 4, y: 0 };
+    const top = { x: 0, z: 0, w: 10, d: 4.5, y: 3 };
+    const clear = { x: 0, z: 0, w: 10, d: 4, y: 3 };
+    const other = { x: 4, z: 4, w: 2, d: 2, y: 1.5 };
+    expect(stairFloorOverlaps({ floors: [base, top, clear, other], stairs: [stair] })).toEqual([
+      { floor: base, stair, end: 'base' },
+      { floor: top, stair, end: 'top' },
+    ]);
+    expect(stairFloorOverlaps(level)).toEqual([]);
+    expect(stairFloorOverlaps({})).toEqual([]);
+  });
+
+  it('shows why: a top-height floor over the ramp blocks the way down', () => {
+    const stair = { x: 4, z: 4, w: 2, d: 2, y0: 0, y1: 3, dir: 'n' };
+    const col = createCollision({ floors: [{ x: 0, z: 0, w: 10, d: 4.5, y: 3 }, { x: 0, z: 6, w: 10, d: 4, y: 0 }], stairs: [stair] });
+    let pos = { x: 5, y: 3, z: 3 };
+    for (let i = 0; i < 40; i++) pos = col.move(pos, 0, 0.1);
+    expect(pos.y).toBe(3);
   });
 });

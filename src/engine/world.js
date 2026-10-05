@@ -1,9 +1,9 @@
 // Builds a level (plain data) into a three.js group plus collision, light sources and
 // named spots/zones (spec §5). Level format, all in tile units (1 = 32 texture px):
 //   floors:  [{ x, z, w, d, y, tex, thick? }]            top surface at y
-//   stairs:  [{ x, z, w, d, y0, y1, dir, tex }]           dir = high side n|s|e|w. No floor at y0 may
-//            overlap a stair's footprint: collision keeps actors at the nearest height, so the
-//            floor would hide the ramp.
+//   stairs:  [{ x, z, w, d, y0, y1, dir, tex }]           dir = high side n|s|e|w. No floor at y0 or
+//            y1 may overlap a stair's footprint: collision keeps actors at the nearest height, so
+//            the floor would hide the ramp (y0) or block the way down (y1). buildWorld throws.
 //   walls:   [{ x, z, w, d, y, h, tex, occluder?, collide? }]   solid boxes
 //   roofs:   [{ x, z, w, d, y, rise, tex, axis: 'x'|'z' }]  gable roofs (always occluders)
 //   windows: [{ x, z, y, w, h, facing: 'n'|'s'|'e'|'w' }]   capiz panels that glow at night
@@ -14,13 +14,18 @@
 //   spots:   { name: [x, z] | [x, z, y] }
 //   spawn:   [x, z] | [x, z, y]
 import * as THREE from 'three';
-import { createCollision } from './collision.js';
+import { createCollision, stairFloorOverlaps } from './collision.js';
 import { makeProp, material, tiledBox } from '../art/props.js';
 import { tileTexture } from '../art/threeTextures.js';
 
 const FACING = { n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 };
 
 export function buildWorld(level) {
+  const [overlap] = stairFloorOverlaps(level);
+  if (overlap) {
+    const { floor: f, stair: s, end } = overlap;
+    throw new Error(`Floor at y ${f.y} (x ${f.x}, z ${f.z}) overlaps the stair at x ${s.x}, z ${s.z} at its ${end}`);
+  }
   const group = new THREE.Group();
   const blockers = [];
   const lightSources = [];
@@ -96,6 +101,8 @@ export function buildWorld(level) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w.w, w.h), mat);
     mesh.position.set(w.x, w.y + w.h / 2, w.z);
     mesh.rotation.y = FACING[w.facing];
+    mesh.userData.occluder = true;
+    occluders.push(mesh);
     group.add(mesh);
   }
 
