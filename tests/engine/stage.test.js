@@ -144,3 +144,36 @@ describe('createFader', () => {
     vi.useRealTimers();
   });
 });
+
+describe('createStage edge cases', () => {
+  it('does not count a walk as arrived on the floor below the spot', async () => {
+    const world = {
+      spots: { sala: new THREE.Vector3(1, 3, 1) },
+      collision: createCollision({ floors: [{ x: -5, z: -5, w: 10, d: 10, y: 0 }, { x: -5, z: -5, w: 10, d: 10, y: 3 }] }),
+    };
+    const actors = new Map([['tiago', fakeActor(0, 0)]]);
+    const stage = createStage({ world, actors, camera: {}, lighting: {}, audio: {}, fader: {} });
+    let arrived = false;
+    stage.run(['moveTo', 'tiago', 'sala']).then(() => (arrived = true));
+    run(stage, 4);
+    await Promise.resolve();
+    expect(arrived).toBe(true);
+    expect(actors.get('tiago').position.toArray()).toEqual([1, 3, 1]);
+  });
+
+  it('ignores bad frame times (NaN, Infinity) in walks and waits', async () => {
+    const { stage, actors } = setup();
+    let waited = false;
+    let arrived = false;
+    stage.run(['wait', 0.5]).then(() => (waited = true));
+    stage.run(['moveTo', 'ibarra', 'door']).then(() => (arrived = true));
+    stage.update(NaN);
+    stage.update(Infinity);
+    expect(stage.busy).toBe(true);
+    run(stage, 4);
+    await Promise.resolve();
+    expect(waited).toBe(true);
+    expect(arrived).toBe(true);
+    expect(actors.get('ibarra').position.x).toBeCloseTo(5, 0);
+  });
+});

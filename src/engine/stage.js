@@ -14,6 +14,7 @@
 //   fadeOut / fadeIn  seconds?
 //   sound    layer, level                  ambience/music layer level 0–1
 import { dirFromVector, DIRECTIONS, WALK_SPEED } from './actors.js';
+import { STEP } from './collision.js';
 
 export const STAGE_ACTIONS = ['moveTo', 'teleport', 'face', 'emote', 'show', 'hide', 'setTime', 'camera', 'wait', 'fadeOut', 'fadeIn', 'sound'];
 const ARRIVE = 0.12;
@@ -98,14 +99,17 @@ export function createStage({ world, actors, camera, lighting, audio, fader }) {
 
     // Advance walks and waits. Call every frame with the frame time.
     update(dt) {
+      if (!Number.isFinite(dt)) dt = 0;
       for (const [id, m] of moves) {
         const a = actor(id);
         m.elapsed += dt;
         const dx = m.target.x - a.position.x;
         const dz = m.target.z - a.position.z;
         const dist = Math.hypot(dx, dz);
+        // Close in x/z but on another floor (e.g. under the sala) is not arrival: teleport there.
+        const arrived = dist < ARRIVE && Math.abs(m.target.y - a.position.y) < STEP;
         if (dist < ARRIVE || m.elapsed > m.limit || m.stuck > STUCK_SECONDS) {
-          if (dist >= ARRIVE) teleport(a, m.target);
+          if (!arrived) teleport(a, m.target);
           else a.setMotion(0, 0);
           moves.delete(id);
           m.resolve();
