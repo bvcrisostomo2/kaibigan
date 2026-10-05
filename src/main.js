@@ -1,2 +1,7 @@
-// Entry point. The engine and UI are wired in later plans.
-document.getElementById('app').textContent = 'Kaibigan: A Noli Me Tangere Story';
+// Entry point. Plan 2 boots the engine sandbox; Plan 4 replaces this with the game.
+import { startSandbox } from './sandbox/sandbox.js';
+
+startSandbox(document.getElementById('app')).then((game) => {
+  // Exposed for debugging in the browser console.
+  window.__kaibigan = game;
+});

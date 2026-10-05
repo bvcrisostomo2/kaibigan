@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kaibigan: A Noli Me Tangere Story</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0d0b12; overflow: hidden; }
+      #app { position: fixed; inset: 0; }
+      #app canvas { display: block; touch-action: none; }
+      .hud { position: absolute; top: 12px; left: 12px; color: #f3e6cf; font: 13px/1.5 system-ui, sans-serif; white-space: pre; text-shadow: 0 1px 2px #000; pointer-events: none; }
+      .fatal { color: #f3e6cf; font: 16px system-ui, sans-serif; padding: 24px; max-width: 520px; }
+    </style>
   </head>
   <body>
     <div id="app"></div>
