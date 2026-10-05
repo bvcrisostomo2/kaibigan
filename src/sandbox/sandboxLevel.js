@@ -11,7 +11,11 @@ export const sandboxLevel = {
     { x: 6, z: 9, w: 7, d: 3, y: 0, tex: 'tiles' },
     { x: 15.4, z: 9, w: 0.6, d: 3, y: 0, tex: 'tiles' },
     { x: 13, z: 11.4, w: 2.4, d: 0.6, y: 0, tex: 'tiles' }, // in front of the stair's foot
-    { x: 6, z: 2, w: 10, d: 7, y: UP, tex: 'narra', thick: 0.3 }, // sala (upper floor)
+    // sala (upper floor), split around the stair's top for the same reason: a floor at the
+    // stair's top height would keep you up there and block the way down
+    { x: 6, z: 2, w: 10, d: 6.4, y: UP, tex: 'narra', thick: 0.3 },
+    { x: 6, z: 8.4, w: 7, d: 0.6, y: UP, tex: 'narra', thick: 0.3 },
+    { x: 15.4, z: 8.4, w: 0.6, d: 0.6, y: UP, tex: 'narra', thick: 0.3 },
   ],
   // The stair's foot sits inside the hall (behind the front wall at z 11.6) and its top lands on the sala.
   stairs: [{ x: 13, z: 8.4, w: 2.4, d: 3, y0: 0, y1: UP, dir: 'n', tex: 'narra' }],

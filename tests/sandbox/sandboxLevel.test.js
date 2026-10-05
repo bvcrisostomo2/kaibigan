@@ -41,6 +41,31 @@ describe('sandbox level', () => {
     expect(world.collision.zonesAt(pos.x, pos.z, pos.y)).toContain('sala');
   });
 
+  it('walks back down from the sala to the street', () => {
+    let pos = { x: 14.1, y: 3, z: 7.5 };
+    const walk = (dx, dz, steps) => {
+      for (let i = 0; i < steps; i++) pos = world.collision.move(pos, dx, dz);
+    };
+    walk(0, 0.1, 40); // down the stair to its foot, just inside the front wall
+    expect(pos.y).toBeLessThan(0.45);
+    walk(-0.1, 0, 32); // west along the hall to the doorway
+    expect(pos.y).toBe(0);
+    walk(0, 0.1, 20); // out to the street
+    expect(world.collision.zonesAt(pos.x, pos.z, pos.y)).not.toContain('sala');
+    expect(pos.z).toBeGreaterThan(12.5);
+  });
+
+  it('has no floor at a stair top height overlapping the ramp (it would block the way down)', () => {
+    for (const s of sandboxLevel.stairs) {
+      for (const f of sandboxLevel.floors) {
+        if (f.y !== s.y1) continue;
+        const overlapX = Math.min(f.x + f.w, s.x + s.w) - Math.max(f.x, s.x);
+        const overlapZ = Math.min(f.z + f.d, s.z + s.d) - Math.max(f.z, s.z);
+        expect(overlapX > 0 && overlapZ > 0, JSON.stringify(f)).toBe(false);
+      }
+    }
+  });
+
   it('has no floor hiding a stair ramp (collision prefers the nearest height)', () => {
     for (const s of sandboxLevel.stairs) {
       for (const f of sandboxLevel.floors) {
