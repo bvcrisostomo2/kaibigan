@@ -125,6 +125,7 @@ export function createLighting(scene, { shadows = true, shadowMapSize = 2048, po
       });
     },
     update(dt, focus) {
+      if (!Number.isFinite(dt)) dt = 0;
       clock += dt;
       if (tween) {
         tween.t = Math.min(1, tween.t + dt / tween.seconds);

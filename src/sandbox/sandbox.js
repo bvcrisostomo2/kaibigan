@@ -10,7 +10,7 @@ import { createActor, dirFromVector, WALK_SPEED, RUN_SPEED, TURN_SECONDS } from 
 import { createFollower, followStep, startFollowing } from '../engine/follow.js';
 import { createLighting, TIME_ORDER } from '../engine/lighting.js';
 import { createParticles } from '../engine/particles.js';
-import { defaultQuality, detectDevice, createFpsMonitor, QUALITY } from '../engine/quality.js';
+import { defaultQuality, detectDevice, createFpsMonitor, frameDt, QUALITY } from '../engine/quality.js';
 import { sandboxLevel, sandboxCast } from './sandboxLevel.js';
 import { loadLocalSprites } from '../art/localSprites.js';
 
@@ -103,7 +103,7 @@ export async function startSandbox(container) {
   let last = performance.now();
   let time = 0;
   function frame(now = performance.now()) {
-    const dt = Math.min(Math.max(0, (now - last) / 1000), 0.1);
+    const dt = frameDt(now, last);
     last = now;
     time += dt;
 

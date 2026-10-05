@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { QUALITY, defaultQuality, detectDevice, createFpsMonitor } from '../../src/engine/quality.js';
+import { QUALITY, defaultQuality, detectDevice, createFpsMonitor, frameDt } from '../../src/engine/quality.js';
 
 describe('quality presets', () => {
   it('Low drops the expensive effects', () => {
@@ -43,5 +43,20 @@ describe('createFpsMonitor', () => {
     let fired = false;
     for (let i = 0; i < 10; i++) fired ||= m.sample(0.2);
     expect(fired).toBe(true);
+  });
+});
+
+describe('frameDt', () => {
+  it('turns two timestamps (ms) into a clamped frame time in seconds', () => {
+    expect(frameDt(1016, 1000)).toBeCloseTo(0.016);
+    expect(frameDt(5000, 1000)).toBe(0.1);
+    expect(frameDt(5000, 1000, 0.25)).toBe(0.25);
+    expect(frameDt(1000, 1016)).toBe(0);
+  });
+
+  it('returns 0 for bad timestamps (NaN, Infinity, missing)', () => {
+    expect(frameDt(NaN, 1000)).toBe(0);
+    expect(frameDt(1000, undefined)).toBe(0);
+    expect(frameDt(Infinity, 1000)).toBe(0);
   });
 });

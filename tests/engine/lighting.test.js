@@ -71,3 +71,20 @@ describe('createLighting', () => {
     expect(points.filter((l) => l.intensity > 0)).toHaveLength(1);
   });
 });
+
+describe('createLighting with bad frame times', () => {
+  it('ignores NaN and Infinity and still finishes a blend', async () => {
+    const focus = new THREE.Vector3();
+    const lighting = createLighting(new THREE.Scene(), { shadows: false, pointLights: 1 });
+    let done = false;
+    lighting.setTime('night', 1).then(() => (done = true));
+    lighting.update(NaN, focus);
+    lighting.update(Infinity, focus);
+    await Promise.resolve();
+    expect(done).toBe(false);
+    for (let i = 0; i < 40; i++) lighting.update(1 / 30, focus);
+    await Promise.resolve();
+    expect(done).toBe(true);
+    expect(lighting.preset.lamps).toBeCloseTo(TIMES.night.lamps);
+  });
+});

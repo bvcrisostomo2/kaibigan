@@ -54,6 +54,7 @@ export function createFollowCamera(aspect, options = {}) {
       camera.updateProjectionMatrix();
     },
     update(dt) {
+      if (!Number.isFinite(dt)) return;
       const k = 1 - Math.exp(-opts.follow * dt);
       focus.lerp(targetPoint(), k);
       place();
@@ -69,7 +70,7 @@ export function createFollowCamera(aspect, options = {}) {
         ray.far = len - 0.3;
         for (const h of ray.intersectObjects(occluders, false)) hits.add(h.object);
       }
-      const speed = Math.min(1, dt * 6);
+      const speed = Number.isFinite(dt) ? Math.min(1, Math.max(0, dt * 6)) : 0;
       for (const mesh of occluders) {
         const want = hits.has(mesh) ? 0.15 : 1;
         const m = mesh.material;

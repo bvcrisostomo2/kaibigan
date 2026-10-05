@@ -17,6 +17,12 @@ export function detectDevice(win = globalThis) {
 }
 
 // Feed frame times; returns true ONCE when a full window averages under the threshold.
+// Seconds between two frame timestamps (ms), clamped to 0..max; 0 for a bad timestamp.
+export function frameDt(now, last, max = 0.1) {
+  const dt = (now - last) / 1000;
+  return Number.isFinite(dt) ? Math.min(Math.max(0, dt), max) : 0;
+}
+
 export function createFpsMonitor({ threshold = 30, seconds = 5 } = {}) {
   let elapsed = 0;
   let frames = 0;

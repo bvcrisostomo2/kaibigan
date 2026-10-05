@@ -64,3 +64,31 @@ describe('createFollowCamera', () => {
     expect(cam.fadedCount()).toBe(0);
   });
 });
+
+describe('createFollowCamera with bad frame times', () => {
+  it('ignores NaN and Infinity when following', () => {
+    const cam = createFollowCamera(1);
+    const target = new THREE.Object3D();
+    cam.follow(target, { snap: true });
+    target.position.set(4, 0, 0);
+    cam.update(NaN);
+    cam.update(Infinity);
+    expect(cam.camera.position.x).toBe(0);
+    for (let i = 0; i < 300; i++) cam.update(1 / 60);
+    expect(cam.camera.position.x).toBeCloseTo(4, 2);
+  });
+
+  it('ignores NaN and Infinity when fading walls', () => {
+    const cam = createFollowCamera(1);
+    cam.follow(new THREE.Vector3(0, 0, 0), { snap: true });
+    cam.camera.updateMatrixWorld();
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 0.4), new THREE.MeshBasicMaterial({ transparent: false, opacity: 1 }));
+    wall.position.set(0, 1, 3);
+    wall.updateMatrixWorld();
+    cam.updateOccluders([wall], new THREE.Vector3(0, 0, 0), NaN);
+    cam.updateOccluders([wall], new THREE.Vector3(0, 0, 0), Infinity);
+    expect(wall.material.opacity).toBe(1);
+    for (let i = 0; i < 60; i++) cam.updateOccluders([wall], new THREE.Vector3(0, 0, 0), 1 / 30);
+    expect(wall.material.opacity).toBeLessThan(0.5);
+  });
+});
