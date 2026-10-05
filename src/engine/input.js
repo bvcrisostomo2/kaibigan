@@ -65,9 +65,16 @@ export function createInput() {
   };
 }
 
+// Typing in a text field (name, save-code words) must not move the player or press buttons.
+function isTextField(el) {
+  return !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+}
+
 // Wire a created input to window keyboard events. Returns an unbind function.
+// Keys typed into text fields and browser shortcuts (Ctrl, Cmd, Alt) are left alone.
 export function bindKeyboard(input, target = window) {
   const down = (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || isTextField(e.target)) return;
     if (e.repeat && KEYMAP[e.code] && BUTTONS.has(KEYMAP[e.code])) return;
     if (input.keyDown(e.code)) e.preventDefault();
   };

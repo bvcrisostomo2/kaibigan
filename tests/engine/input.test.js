@@ -114,3 +114,39 @@ describe('bindKeyboard', () => {
     expect(KEYMAP).toMatchObject({ KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right', ShiftLeft: 'run', Space: 'interact', KeyJ: 'journal', KeyH: 'toggleControls', KeyM: 'mute', Escape: 'menu' });
   });
 });
+
+describe('bindKeyboard while typing', () => {
+  const fakeTarget = () => {
+    const handlers = {};
+    return { handlers, addEventListener: (type, fn) => (handlers[type] = fn), removeEventListener: (type) => delete handlers[type] };
+  };
+  const key = (code, extra = {}) => ({ code, repeat: false, preventDefault() { this.prevented = true; }, ...extra });
+
+  it('leaves keys alone while typing in a text field', () => {
+    const fields = [{ tagName: 'INPUT' }, { tagName: 'TEXTAREA' }, { tagName: 'SELECT' }, { tagName: 'DIV', isContentEditable: true }];
+    for (const field of fields) {
+      const target = fakeTarget();
+      const input = createInput();
+      bindKeyboard(input, target);
+      for (const code of ['KeyW', 'KeyE', 'Space', 'KeyM']) {
+        const e = key(code, { target: field });
+        target.handlers.keydown(e);
+        expect(e.prevented, `${field.tagName} ${code}`).toBeUndefined();
+      }
+      expect(input.move().z).toBe(0);
+      expect(input.consumePressed()).toEqual([]);
+    }
+  });
+
+  it('leaves browser shortcuts (Ctrl, Cmd, Alt) alone', () => {
+    for (const mod of ['ctrlKey', 'metaKey', 'altKey']) {
+      const target = fakeTarget();
+      const input = createInput();
+      bindKeyboard(input, target);
+      const e = key('KeyS', { [mod]: true });
+      target.handlers.keydown(e);
+      expect(e.prevented, mod).toBeUndefined();
+      expect(input.move().z).toBe(0);
+    }
+  });
+});
