@@ -199,10 +199,11 @@ export function stateFromCode(data, name, restore = {}, hints = []) {
 // never mid-beat. The UI displays `latest` and never receives state or decoded data.
 //
 //   const codes = trackCheckpointCodes(ctx);
-//   codes.latest   // string | null: null until the first checkpoint is reached
+//   codes.latest   // string | null: null until a checkpoint has been reached (a resumed game starts with one)
 //   codes.stop();  // unsubscribe
 export function trackCheckpointCodes(ctx) {
-  let latest = null;
+  // A resumed game (Continue, or a loaded code) already passed its checkpoint, so it has a code at once.
+  let latest = ctx.state.checkpoint > 0 ? encodeCode(ctx.state) : null;
   const off = ctx.bus.on('checkpoint', () => {
     latest = encodeCode(ctx.state);
   });

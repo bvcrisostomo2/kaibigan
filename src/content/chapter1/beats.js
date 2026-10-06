@@ -18,7 +18,7 @@ export const chapter1Beats = [
     spawn: 'caida_spawn',
     trigger: { enterZone: 'caida', or: { afterSec: 180 } },
     actions: [
-      ['fadeOut', 0.3], ['teleport', 'player', 'caida_spawn'], ['face', 'player', 'isabel'], ['face', 'isabel', 'player'], ['fadeIn', 0.3],
+      ['setTime', 'dusk'], ['fadeOut', 0.3], ['teleport', 'player', 'caida_spawn'], ['face', 'player', 'isabel'], ['face', 'isabel', 'player'], ['fadeIn', 0.3],
       ['dialogue', 'k1_isabel'],
       ['hide', 'isabel'],
     ],
@@ -30,7 +30,7 @@ export const chapter1Beats = [
     spawn: 'sala_spawn',
     trigger: { enterZone: 'sala', or: { afterSec: 120 } },
     actions: [
-      ['fadeOut', 0.3], ['teleport', 'player', 'sala_spawn'], ['face', 'player', 'left'], ['fadeIn', 0.3],
+      ['setTime', 'dusk'], ['hide', 'isabel'], ['fadeOut', 0.3], ['teleport', 'player', 'sala_spawn'], ['face', 'player', 'left'], ['fadeIn', 0.3],
       ['dialogue', 'k1_sala_scene'],
       ['endChapter'],
     ],

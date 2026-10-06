@@ -70,6 +70,24 @@ describe('Chapter 1 opening (headless)', () => {
     expect(decodeCode(code).data).toMatchObject({ checkpoint: 1, title: 'Doña' });
   });
 
+  it('gives a resumed game its save code straight away, and a new game none', () => {
+    const resumed = createState({ name: 'Ana', title: 'Doña' });
+    resumed.checkpoint = 1;
+    const a = createHeadlessGame({ chapter: chapter1, state: resumed, hints });
+    expect(decodeCode(trackCheckpointCodes(a.ctx).latest).data).toMatchObject({ checkpoint: 1, title: 'Doña' });
+    const b = createHeadlessGame({ chapter: chapter1, state: createState({ name: 'Ana', title: 'Doña' }), hints });
+    expect(trackCheckpointCodes(b.ctx).latest).toBeNull();
+  });
+
+  it('sets dusk and keeps Isabel offstage in every beat that can be resumed', () => {
+    for (const id of ['k1_greeting', 'k1_sala']) {
+      const beat = chapter1.beats.find((b) => b.id === id);
+      expect(beat.actions, id).toContainEqual(['setTime', 'dusk']);
+    }
+    const sala = chapter1.beats.find((b) => b.id === 'k1_sala');
+    expect(sala.actions).toContainEqual(['hide', 'isabel']);
+  });
+
   it('still reaches the card when the player does nothing', async () => {
     const { director } = play();
     await director.start();
