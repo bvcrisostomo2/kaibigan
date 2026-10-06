@@ -57,6 +57,18 @@ describe('validateContent', () => {
     expect(errorsFor(mutate).some((e) => e.includes(message))).toBe(true);
   });
 
+  it('checks cutscenes, beat spawns, beat locations and title cards', () => {
+    expect(errorsFor((ch) => { ch.beats[2].actions[0][1][1].actions[1] = ['cutscene', 'nope']; })).toContain("beat 'close'.actions[0].case[1][1]: cutscene 'nope' not found");
+    expect(errorsFor((ch) => { ch.cutscenes.guardia_shadow.push(['dialogue', 'greet']); })).toContain("cutscene 'guardia_shadow'[1]: only host actions may run in a cutscene, not 'dialogue'");
+    expect(errorsFor((ch) => { ch.cutscenes.guardia_shadow.push(['cutscene', 'guardia_shadow']); })).toContain("cutscene 'guardia_shadow'[1]: only host actions may run in a cutscene, not 'cutscene'");
+    expect(errorsFor((ch) => { ch.cutscenes.guardia_shadow.push(['moveTo', 'nobody', 'table']); })).toContain("cutscene 'guardia_shadow'[1]: actor 'nobody' not found");
+    expect(errorsFor((ch) => { ch.beats[0].spawn = 'roof'; })).toContain("beat 'arrive': spawn 'roof' not found");
+    expect(errorsFor((ch) => { ch.beats[0].spawn = 'table'; })).toEqual([]);
+    expect(errorsFor((ch) => { ch.beats[0].location = 'casa'; })).toContain("beat 'arrive': location 'casa' not found");
+    expect(errorsFor((ch) => { ch.locations = { casa: { name: 'Casa', detail: '' } }; ch.beats[0].location = 'casa'; })).toEqual([]);
+    expect(errorsFor((ch) => { ch.titleCards = { 1: { title: 'I', subtitle: 'One' } }; })).toContain("beat 'dinner'.actions[0]: title card '2' not found");
+  });
+
   it('requires a default ending', () => {
     const { errors } = validateContent(base({ endings: [{ id: 'x', if: { flag: 'a' } }] }));
     expect(errors).toContain("endings: the last ending must have no 'if' (default)");

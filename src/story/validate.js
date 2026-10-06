@@ -2,7 +2,7 @@
 // instead of silently mid-game. Returns { errors: string[], warnings: string[] }.
 //
 // validateContent({
-//   chapters,            // [{ number, startBeat, beats, dialogues }]
+//   chapters,            // [{ number, startBeat, beats, dialogues, cutscenes?, titleCards?, locations? }]
 //   cast, glossary, notes, // [{ id, ... }]
 //   hints, endings,      // optional arrays
 //   codeLayouts,         // optional { version: layout } — save-code coverage checks
@@ -112,6 +112,8 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
         if (!DIRECTOR_ACTIONS.includes(type) && !HOST_ACTIONS.includes(type)) errors.push(`${aw}: unknown action '${type}'`);
         if (type === 'dialogue' && !dialogueIds.has(arg)) errors.push(`${aw}: dialogue '${arg}' not found`);
         if (type === 'setBeat' && !beatIds.has(arg)) errors.push(`${aw}: beat '${arg}' not found`);
+        if (type === 'cutscene' && !Object.hasOwn(ch.cutscenes ?? {}, arg)) errors.push(`${aw}: cutscene '${arg}' not found`);
+        if (type === 'titleCard' && ch.titleCards && !Object.hasOwn(ch.titleCards, arg)) errors.push(`${aw}: title card '${arg}' not found`);
         if (type === 'effects') checkEffects(arg, aw);
         if (ACTOR_ACTIONS.includes(type) && arg !== 'player' && !castIds.has(arg)) errors.push(`${aw}: actor '${arg}' not found`);
         if (SPOT_ACTIONS.includes(type) && level && !level.spots.includes(a[2])) errors.push(`${aw}: spot '${a[2]}' not found`);
@@ -125,9 +127,20 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
         }
       });
 
+    // A cutscene is a named list of host actions (no dialogues, branches or nested cutscenes).
+    for (const [id, list] of Object.entries(ch.cutscenes ?? {})) {
+      const where = `cutscene '${id}'`;
+      list.forEach((a, i) => {
+        if (!HOST_ACTIONS.includes(a[0]) || a[0] === 'cutscene') errors.push(`${where}[${i}]: only host actions may run in a cutscene, not '${a[0]}'`);
+      });
+      checkActions(list.filter((a) => HOST_ACTIONS.includes(a[0])), where);
+    }
+
     for (const b of ch.beats) {
       const where = `beat '${b.id}'`;
       if (b.next != null && !beatIds.has(b.next)) errors.push(`${where}: next '${b.next}' not found`);
+      if (b.spawn != null && level && !level.spots.includes(b.spawn)) errors.push(`${where}: spawn '${b.spawn}' not found`);
+      if (b.location != null && !Object.hasOwn(ch.locations ?? {}, b.location)) errors.push(`${where}: location '${b.location}' not found`);
       if (b.trigger) checkTrigger(b.trigger, `${where}.trigger`);
       if (b.actions) checkActions(b.actions, `${where}.actions`);
       for (const [target, entry] of Object.entries(b.interactions ?? {})) {

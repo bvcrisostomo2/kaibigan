@@ -7,6 +7,7 @@ export const miniHints = [{ id: 'eyes', if: { hinalaAtLeast: 2 }, journal: 'You 
 export const miniChapter = {
   number: 1,
   startBeat: 'arrive',
+  cutscenes: { guardia_shadow: [['wait', 1]] },
   dialogues: {
     greet: { id: 'greet', start: 'a', nodes: { a: { who: 'isabel', text: 'Welcome, {title} {name}!', next: null } } },
     isabel_chat: {
