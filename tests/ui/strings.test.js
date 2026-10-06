@@ -3,6 +3,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createStrings, t } from '../../src/ui/strings.js';
 import { EN } from '../../src/content/strings/en.js';
+import { TIME_ORDER } from '../../src/engine/lighting.js';
+import { TEXT_SPEED_ORDER, QUALITY_NAMES, MENU_ITEMS } from '../../src/ui/settings.js';
+import { JOURNAL_TABS } from '../../src/ui/journal.js';
 
 describe('createStrings', () => {
   it('looks up keys and fills {placeholders}', () => {
@@ -38,6 +41,21 @@ describe('strings/en.js', () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it('has the keys built at run time (title items, time of day, menu rows and values, journal tabs, errors)', () => {
+    const dynamic = [
+      ...['continue', 'newGame', 'enterCode'].map((x) => `title.${x}`),
+      ...TIME_ORDER.map((x) => `hud.time.${x}`),
+      ...MENU_ITEMS.map((x) => `menu.${x}`),
+      ...TEXT_SPEED_ORDER.map((x) => `menu.textSpeed.${x}`),
+      ...QUALITY_NAMES.map((x) => `menu.quality.${x}`),
+      ...['on', 'off'].map((x) => `menu.mute.${x}`),
+      ...JOURNAL_TABS.map((x) => `journal.tab.${x}`),
+      ...['empty', 'long', 'chars'].map((x) => `letter.nameError.${x}`),
+      ...['empty', 'unknownWord', 'ambiguousWord', 'length', 'checksum', 'newerVersion', 'unknownCheckpoint'].map((x) => `code.error.${x}`),
+    ];
+    expect(dynamic.filter((k) => EN[k] == null)).toEqual([]);
   });
 
   it('keeps every value a non-empty string', () => {
