@@ -11,6 +11,8 @@ export const KEYMAP = {
 };
 
 const BUTTONS = new Set(['interact', 'journal', 'toggleControls', 'mute', 'menu']);
+// Direction keys also queue a 'nav_*' press on every keydown (key repeat included) for menu cursors.
+const NAV = { up: 'nav_up', down: 'nav_down', left: 'nav_left', right: 'nav_right' };
 
 export function createInput() {
   const held = new Set();
@@ -23,6 +25,7 @@ export function createInput() {
       const action = KEYMAP[code];
       if (!action) return false;
       if (BUTTONS.has(action) && !held.has(action)) pressed.push(action);
+      if (NAV[action]) pressed.push(NAV[action]);
       held.add(action);
       return true;
     },
@@ -52,7 +55,7 @@ export function createInput() {
       }
       return { x, z, run: held.has('run') || virtualRun };
     },
-    // Button presses since the last call, oldest first.
+    // Button and 'nav_*' presses since the last call, oldest first.
     consumePressed() {
       return pressed.splice(0, pressed.length);
     },

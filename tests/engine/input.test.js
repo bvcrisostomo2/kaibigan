@@ -150,3 +150,28 @@ describe('bindKeyboard while typing', () => {
     }
   });
 });
+
+describe('menu navigation presses', () => {
+  it('queues a nav press for every direction keydown, key repeat included', () => {
+    const input = createInput();
+    input.keyDown('KeyW');
+    input.keyDown('KeyW');
+    input.keyDown('ArrowDown');
+    input.keyDown('KeyA');
+    input.keyDown('ArrowRight');
+    expect(input.consumePressed()).toEqual(['nav_up', 'nav_up', 'nav_down', 'nav_left', 'nav_right']);
+    expect(input.move().z).toBe(0); // up and down both held
+  });
+
+  it('passes key repeats of direction keys through bindKeyboard', () => {
+    const handlers = {};
+    const target = { addEventListener: (type, fn) => (handlers[type] = fn), removeEventListener() {} };
+    const input = createInput();
+    bindKeyboard(input, target);
+    const ev = (repeat) => ({ code: 'ArrowDown', repeat, preventDefault() {} });
+    handlers.keydown(ev(false));
+    handlers.keydown(ev(true));
+    handlers.keydown(ev(true));
+    expect(input.consumePressed()).toEqual(['nav_down', 'nav_down', 'nav_down']);
+  });
+});

@@ -201,6 +201,12 @@ export function createDirector({ chapter, ctx, host }) {
       return dialogueId != null;
     },
 
+    // The dialogue Talk on `target` would open right now, or null (markers show "!" or "…" from it).
+    interactionFor(target) {
+      if (busy || ended || !beat) return null;
+      return resolveInteraction(beat.interactions?.[target]);
+    },
+
     // Targets that would open a dialogue right now (for "!" markers).
     availableInteractions() {
       if (busy || ended || !beat) return [];
