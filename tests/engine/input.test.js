@@ -175,3 +175,23 @@ describe('menu navigation presses', () => {
     expect(input.consumePressed()).toEqual(['nav_down', 'nav_down', 'nav_down']);
   });
 });
+
+describe('bindKeyboard on a focused button', () => {
+  it('leaves Enter and Space to the button (native activation) but keeps movement keys', () => {
+    const handlers = {};
+    const target = { addEventListener: (type, fn) => (handlers[type] = fn), removeEventListener() {} };
+    const key = (code) => ({ code, repeat: false, target: { tagName: 'BUTTON' }, preventDefault() { this.prevented = true; } });
+    const input = createInput();
+    bindKeyboard(input, target);
+    for (const code of ['Enter', 'Space']) {
+      const e = key(code);
+      handlers.keydown(e);
+      expect(e.prevented, code).toBeUndefined();
+    }
+    expect(input.consumePressed()).toEqual([]);
+    const w = key('KeyW');
+    handlers.keydown(w);
+    expect(w.prevented).toBe(true);
+    expect(input.move().z).toBe(-1);
+  });
+});

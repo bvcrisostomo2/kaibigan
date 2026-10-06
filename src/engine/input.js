@@ -68,6 +68,9 @@ export function createInput() {
   };
 }
 
+// Enter and Space on a focused button belong to the button (native activation, spec §4.3).
+const BUTTON_KEYS = new Set(['Enter', 'NumpadEnter', 'Space']);
+
 // Typing in a text field (name, save-code words) must not move the player or press buttons.
 function isTextField(el) {
   return !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
@@ -78,6 +81,7 @@ function isTextField(el) {
 export function bindKeyboard(input, target = window) {
   const down = (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || isTextField(e.target)) return;
+    if (BUTTON_KEYS.has(e.code) && e.target?.tagName === 'BUTTON') return;
     if (e.repeat && KEYMAP[e.code] && BUTTONS.has(KEYMAP[e.code])) return;
     if (input.keyDown(e.code)) e.preventDefault();
   };
