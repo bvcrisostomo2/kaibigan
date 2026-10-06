@@ -33,10 +33,13 @@ export function sheetDir(dir) {
 // fall back to what they have: walk diagonals use run diagonals, then the nearest view — the
 // back view for up-diagonals (side views in these sheets are front three-quarter), else the side.
 export function animCandidates({ mode, dir, expression = null, gesture = null }) {
-  if (gesture) return [`gesture_${gesture}`, 'idle_down'];
-  if (expression) return [`expression_${expression}`, 'idle_down'];
   const side = sheetDir(dir);
   const away = dir.startsWith('up_');
+  // Seated actors stay seated: expressions show on the portrait only. Sheets without seated art
+  // (e.g. a local set) fall back to standing idle.
+  if (mode === 'sit') return [`sit_${dir}`, ...(away ? ['sit_up'] : []), `sit_${side}`, `idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
+  if (gesture) return [`gesture_${gesture}`, 'idle_down'];
+  if (expression) return [`expression_${expression}`, 'idle_down'];
   if (mode === 'idle') return [`idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
   if (mode === 'run') return [`run_${dir}`, `walk_${dir}`, ...(away ? ['run_up', 'walk_up'] : []), `run_${side}`, `walk_${side}`, 'walk_down'];
   return [`walk_${dir}`, `run_${dir}`, ...(away ? ['walk_up'] : []), `walk_${side}`, 'walk_down'];
@@ -64,6 +67,7 @@ export function cellUV({ col, row }, cols, rows) {
 
 // Pure animation clock: which frame index to show after `time` seconds in a mode.
 export function animFrame(mode, time) {
+  if (mode === 'sit') return 0;
   if (mode === 'walk') return Math.floor(time * WALK_FPS);
   if (mode === 'run') return Math.floor(time * RUN_FPS);
   return Math.floor(time / IDLE_SECONDS);
@@ -133,10 +137,13 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
     get dir() { return state.dir; },
     get facing() { return state.target; },
     get mode() { return state.mode; },
+    get seated() { return state.mode === 'sit'; },
     get position() { return object.position; },
     // Movement this frame decides walk/run/idle and facing.
+    // A seated actor stays seated until it moves (or stand() is called).
     setMotion(dx, dz, run = false) {
       const moving = Math.abs(dx) > 1e-6 || Math.abs(dz) > 1e-6;
+      if (!moving && state.mode === 'sit') return;
       const mode = moving ? (run ? 'run' : 'walk') : 'idle';
       if (mode !== state.mode) state.time = 0;
       state.mode = mode;
@@ -151,6 +158,18 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
       turnTo(dir);
       state.expression = null;
       state.gesture = null;
+    },
+    // Sit facing dir (snapping round, no turn), until stand() or the next movement.
+    sit(dir) {
+      if (!DIRECTIONS.includes(dir)) throw new Error(`Bad direction '${dir}'`);
+      state.mode = 'sit';
+      state.time = 0;
+      state.dir = state.target = dir;
+    },
+    stand() {
+      if (state.mode !== 'sit') return;
+      state.mode = 'idle';
+      state.time = 0;
     },
     // Show an expression ('smile', ...) or gesture ('bow', 'point', 'fan'); null returns to idle.
     emote(name) {

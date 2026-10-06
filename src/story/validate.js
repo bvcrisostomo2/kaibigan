@@ -15,8 +15,9 @@ import { glossaryRefs } from './text.js';
 import { seenFlag } from './dialogue.js';
 
 const SPEAKERS = ['player', 'narrator'];
-const ACTOR_ACTIONS = ['moveTo', 'face', 'teleport', 'emote', 'show', 'hide'];
-const SPOT_ACTIONS = ['moveTo', 'teleport'];
+const ACTOR_ACTIONS = ['moveTo', 'face', 'teleport', 'emote', 'show', 'hide', 'sit', 'stand'];
+const SPOT_ACTIONS = ['moveTo', 'teleport', 'sit'];
+const FACINGS = ['down', 'up', 'left', 'right', 'down_left', 'down_right', 'up_left', 'up_right'];
 // Flags named like 'ch1_...' are persistent choices and must be stored in save codes.
 const PERSISTENT_FLAG = /^ch\d+_/;
 
@@ -39,6 +40,7 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
       if (!CONDITION_KEYS.includes(k)) errors.push(`${where}: unknown condition key '${k}'`);
       else if (k === 'all' || k === 'any') v.forEach((c, i) => checkCondition(c, `${where}.${k}[${i}]`));
       else if (k === 'affinityAtLeast') Object.keys(v).forEach((id) => castIds.has(id) || errors.push(`${where}: unknown cast '${id}'`));
+      else if (k === 'countAtLeast' && !(Array.isArray(v?.flags) && Number.isInteger(v?.n) && v.n >= 1 && v.n <= v.flags.length)) errors.push(`${where}: countAtLeast needs { n, flags } with 1 ≤ n ≤ flags.length`);
     }
     for (const flag of flagsReadBy(cond)) flagsRead.push({ flag, where });
   };
@@ -117,6 +119,7 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
         if (type === 'effects') checkEffects(arg, aw);
         if (ACTOR_ACTIONS.includes(type) && arg !== 'player' && !castIds.has(arg)) errors.push(`${aw}: actor '${arg}' not found`);
         if (SPOT_ACTIONS.includes(type) && level && !level.spots.includes(a[2])) errors.push(`${aw}: spot '${a[2]}' not found`);
+        if (type === 'sit' && !FACINGS.includes(a[3])) errors.push(`${aw}: sit needs a facing, not '${a[3]}'`);
         if (type === 'branch') {
           if (!Array.isArray(arg) || arg.length === 0) errors.push(`${aw}: branch needs at least one case`);
           else if (arg.at(-1).if != null) errors.push(`${aw}: branch must end with a default case (no 'if')`);
@@ -165,6 +168,8 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
     checkCondition(h.if, where);
     if (h.setFlag) flagsSet.add(h.setFlag);
   });
+
+  for (const ch of chapters) (ch.endCard?.standings ?? []).forEach((s, i) => checkCondition(s.if, `endCard.standings[${i}]`));
 
   if (endings.length) {
     if (endings.at(-1).if != null) errors.push(`endings: the last ending must have no 'if' (default)`);

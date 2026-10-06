@@ -4,6 +4,9 @@ import { buildWorld } from '../../src/engine/world.js';
 import { stairFloorOverlaps } from '../../src/engine/collision.js';
 import { TEXTURE_NAMES } from '../../src/art/textures.js';
 import { PROPS } from '../../src/art/props.js';
+import { createStage } from '../../src/engine/stage.js';
+import { WALK_SPEED } from '../../src/engine/actors.js';
+import { chapter1Beats } from '../../src/content/chapter1/beats.js';
 
 describe('Chapter 1 level', () => {
   const world = buildWorld(chapter1Level);
@@ -67,10 +70,58 @@ describe('Chapter 1 level', () => {
     expect(pos.z).toBeGreaterThan(-3); // the far end of the bridge is broken
   });
 
-  it('stands every spot, the spawn and every examinable on a floor', () => {
-    for (const [name, p] of Object.entries(world.spots)) expect(col.canStand(p.x, p.z, p.y), name).toBe(true);
+  it('stands every spot (seats aside), the spawn and every examinable on a floor', () => {
+    for (const [name, p] of Object.entries(world.spots)) if (!name.startsWith('seat_')) expect(col.canStand(p.x, p.z, p.y), name).toBe(true);
     expect(col.canStand(world.spawn.x, world.spawn.z, world.spawn.y)).toBe(true);
     for (const e of chapter1Level.examinables) expect(world.spots[e.spot], e.id).toBeDefined();
+  });
+
+  it('puts every seat on a chair at the table, with room to stand up behind it', () => {
+    const seats = Object.entries(world.spots).filter(([name]) => name.startsWith('seat_'));
+    expect(seats.map(([n]) => n).sort()).toEqual(['seat_damaso', 'seat_guevarra', 'seat_head', 'seat_ibarra', 'seat_laruja', 'seat_newcomer', 'seat_player', 'seat_tiburcio', 'seat_victorina']);
+    for (const [name, p] of seats) {
+      expect(col.blocked(p.x, p.z, p.y), name).toBe(true); // on the chair itself
+      expect(zoneAt(p), name).toBe('caida');
+      const room = [0.55, 0.8, 1.1].some((r) => [[0, -r], [0, r], [-r, 0]].some(([dx, dz]) => col.canStand(p.x + dx, p.z + dz, p.y)));
+      expect(room, name).toBe(true);
+    }
+  });
+
+  it('sets one chair for each of the nine diners, so no seat sits empty', () => {
+    const chairs = chapter1Level.props.filter((p) => p.type === 'chair' && p.y === 3.5 && p.z < 12);
+    expect(chairs).toHaveLength(9);
+    const seats = Object.entries(world.spots).filter(([name]) => name.startsWith('seat_'));
+    for (const [name, s] of seats) expect(chairs.some((c) => Math.hypot(c.x - s.x, c.z - s.z) < 0.01), name).toBe(true);
+  });
+
+  it("walks Ibarra from his chair past the table to the stair head on his own feet, never stuck or teleported", async () => {
+    const exit = chapter1Beats.find((b) => b.id === 'k3_dinner').actions;
+    const from = exit.findIndex((a) => a[0] === 'stand' && a[1] === 'ibarra');
+    const to = exit.findIndex((a) => a[0] === 'hide' && a[1] === 'ibarra');
+    const ibarra = {
+      object: { position: world.spots.seat_ibarra.clone(), visible: true },
+      get position() { return this.object.position; },
+      seated: true, dir: 'down',
+      setMotion() {}, face() {}, emote() {},
+      sit(d) { this.seated = true; this.dir = d; },
+      stand() { this.seated = false; },
+    };
+    const stage = createStage({ world, actors: new Map([['ibarra', ibarra]]), camera: {}, lighting: {}, audio: {}, fader: {} });
+    const dt = 1 / 30;
+    let jumped = false;
+    for (const action of exit.slice(from, to)) {
+      let done = false;
+      stage.run(action).then(() => (done = true));
+      for (let t = 0; !done && t < 40; t += dt) {
+        const before = ibarra.position.clone();
+        stage.update(dt);
+        if (ibarra.position.distanceTo(before) > WALK_SPEED * dt * 1.5) jumped = true;
+        await Promise.resolve();
+      }
+      expect(done, JSON.stringify(action)).toBe(true);
+    }
+    expect(jumped).toBe(false);
+    expect(ibarra.position.distanceTo(world.spots.isabel_stairhead)).toBeLessThan(0.2);
   });
 
   it('lists only real zones as indoor', () => {

@@ -8,6 +8,8 @@
 //   face     actorId, direction (8-way, e.g. 'down_left') | actorId
 //   emote    actorId, expressionOrGesture|null
 //   show / hide  actorId
+//   sit      actorId, spot, direction       snap onto a seat, seated, facing direction
+//   stand    actorId                         stand up, stepping clear of the chair
 //   setTime  'dusk'|'evening'|'night', seconds?
 //   camera   'follow', actorId  |  'focus', spotOrActorId  |  'zoom', distance
 //   wait     seconds
@@ -16,9 +18,11 @@
 import { dirFromVector, DIRECTIONS, WALK_SPEED } from './actors.js';
 import { STEP } from './collision.js';
 
-export const STAGE_ACTIONS = ['moveTo', 'teleport', 'face', 'emote', 'show', 'hide', 'setTime', 'camera', 'wait', 'fadeOut', 'fadeIn', 'sound'];
+export const STAGE_ACTIONS = ['moveTo', 'teleport', 'face', 'emote', 'show', 'hide', 'sit', 'stand', 'setTime', 'camera', 'wait', 'fadeOut', 'fadeIn', 'sound'];
 const ARRIVE = 0.12;
 const STUCK_SECONDS = 0.6;
+// Unit steps for each facing (+z is down), used to step back from a chair when standing.
+const STEP_OF = { right: [1, 0], down_right: [1, 1], down: [0, 1], down_left: [-1, 1], left: [-1, 0], up_left: [-1, -1], up: [0, -1], up_right: [1, -1] };
 
 export function createStage({ world, actors, camera, lighting, audio, fader }) {
   const moves = new Map(); // actorId → { target, resolve, elapsed, stuck, limit }
@@ -39,6 +43,22 @@ export function createStage({ world, actors, camera, lighting, audio, fader }) {
   function teleport(a, p) {
     a.object.position.copy(p);
     a.setMotion(0, 0);
+  }
+
+  // The nearest point beside p where an actor can stand (a seat sits inside its chair's
+  // blocker), trying straight back from the facing first. Falls back to p itself.
+  function clearOf(p, facing) {
+    const [fx, fz] = STEP_OF[facing] ?? [0, 1];
+    const back = Math.atan2(-fz, -fx);
+    for (const r of [0.55, 0.8, 1.1, 1.5]) {
+      for (let i = 0; i < 8; i++) {
+        const a = back + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (Math.PI / 4);
+        const x = p.x + Math.cos(a) * r;
+        const z = p.z + Math.sin(a) * r;
+        if (world.collision.canStand(x, z, p.y)) return p.clone().set(x, world.collision.heightAt(x, z, p.y), z);
+      }
+    }
+    return p.clone();
   }
 
   return {
@@ -71,6 +91,22 @@ export function createStage({ world, actors, camera, lighting, audio, fader }) {
         case 'emote':
           actor(a1).emote(a2 ?? null);
           return Promise.resolve();
+        case 'sit': {
+          const a = actor(a1);
+          moves.get(a1)?.resolve();
+          moves.delete(a1);
+          a.object.position.copy(point(a2));
+          a.sit(action[3]);
+          return Promise.resolve();
+        }
+        case 'stand': {
+          const a = actor(a1);
+          if (a.seated) {
+            a.stand();
+            a.object.position.copy(clearOf(a.position, a.dir));
+          }
+          return Promise.resolve();
+        }
         case 'show':
         case 'hide':
           actor(a1).object.visible = type === 'show';

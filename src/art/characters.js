@@ -10,12 +10,13 @@
 //   rows 0–3: directions down, left, right, up — cols 0–3 walk frames, cols 4–5 idle (breathing)
 //   row 4:    front-facing expressions: neutral, smile, frown, shock, angry
 //   row 5:    front-facing gestures: bow, point, fan
+//   row 6:    seated, one frame per direction: down, left, right, up
 import { PixelCanvas, parseHex, shade } from './pixel.js';
 
 export const CELL_W = 48;
 export const CELL_H = 64;
 export const SHEET_COLS = 8;
-export const SHEET_ROWS = 6;
+export const SHEET_ROWS = 7;
 export const DIRS = ['down', 'left', 'right', 'up'];
 export const WALK_FRAMES = 4;
 export const IDLE_FRAMES = 2;
@@ -27,6 +28,8 @@ const EYE = '#1d1416';
 const WHITE = '#fbf7ef';
 const MOUTH = '#a5413a';
 const CX = 23.5;
+// Seated: the hips rest at chair height (0.45 world units = 18 px above the soles at row 61).
+const SEAT_HIP_Y = 43;
 
 const WALK = [
   { leg: 1, bob: 0, arm: 1 },
@@ -58,6 +61,7 @@ export function cellFor({ dir = 'down', mode = 'idle', frame = 0, expression = n
   }
   const row = DIRS.indexOf(dir);
   if (row < 0) throw new Error(`Unknown direction '${dir}'`);
+  if (mode === 'sit') return { col: row, row: 6 };
   if (mode === 'walk') return { col: ((frame % WALK_FRAMES) + WALK_FRAMES) % WALK_FRAMES, row };
   if (mode === 'idle') return { col: WALK_FRAMES + (((frame % IDLE_FRAMES) + IDLE_FRAMES) % IDLE_FRAMES), row };
   throw new Error(`Unknown mode '${mode}'`);
@@ -189,21 +193,37 @@ function rig(costume, pose) {
   const P = PROPORTIONS[costume.age ?? 'adult'];
   if (!P) throw new Error(`Unknown age '${costume.age}'`);
   const side = pose.view === 'side';
-  const lift = pose.bob - (pose.breathe ?? 0);
+  // Seated, everything above the legs sinks so the hips rest on the seat.
+  const sink = pose.sit ? SEAT_HIP_Y - P.hipY : 0;
+  const lift = pose.bob - (pose.breathe ?? 0) + sink;
   const bow = pose.gesture === 'bow' ? 2 : 0;
   const ox = side ? -1 : 0; // 3/4 view leans toward the facing side
   const shoulderY = P.shoulderY + lift;
-  const waistY = P.waistY + pose.bob;
-  const hipY = P.hipY + pose.bob;
+  const waistY = P.waistY + pose.bob + sink;
+  const hipY = P.hipY + pose.bob + sink;
   const sw = (side ? b.shoulder - 2 : b.shoulder) + P.shoulderAdd;
   const ww = side ? b.waist - 1.5 : b.waist;
   const headTop = P.headTop + lift + bow;
-  return { b, P, side, ox, lift, shoulderY, waistY, hipY, sw, ww, headTop, chinY: headTop + P.chin, cx: CX + ox };
+  return { b, P, side, ox, lift, shoulderY, waistY, hipY, sw, ww, headTop, chinY: headTop + P.chin, cx: CX + ox, sit: !!pose.sit };
 }
 
 function legPoints(r, pose) {
   const { cx, hipY, side, b } = r;
   const { knee, ankle } = r.P;
+  if (r.sit) {
+    // Thighs forward along the seat, shins straight down to the floor.
+    if (side) {
+      return [
+        { hip: [cx - 1, hipY], knee: [cx - 7, hipY + 1], ankle: [cx - 7, ankle], lift: 0, far: true },
+        { hip: [cx + 1, hipY + 1], knee: [cx - 5, hipY + 2], ankle: [cx - 5, ankle], lift: 0, far: false },
+      ];
+    }
+    const h = b.hip;
+    return [
+      { hip: [cx - h, hipY], knee: [cx - h - 1, hipY + 3], ankle: [cx - h - 1, ankle], lift: 0, dir: -1 },
+      { hip: [cx + h, hipY], knee: [cx + h + 1, hipY + 3], ankle: [cx + h + 1, ankle], lift: 0, dir: 1 },
+    ];
+  }
   if (side) {
     const s = pose.leg * 3;
     return [
@@ -294,7 +314,9 @@ function drawBody(r, costume, view) {
     const tones = ramp4(costume.bottom === 'robe' ? col.robe : col.skirt);
     const flare = costume.bottom === 'robe' ? 10.5 : 12.5;
     const hem = 58;
-    fillPolygon(L, [[cx - ww - 0.5, wy - 2], [cx + ww + 0.5, wy - 2], [cx + flare, hem], [cx - flare, hem]], tones);
+    // Seated in 3/4 view the cloth falls over the knees, toward the facing (left) side.
+    const lap = r.sit && view === 'side' ? [[cx - ww - 0.5, wy - 2], [cx + ww + 0.5, wy - 2], [cx + ww + 1.5, r.hipY + 2], [cx + flare * 0.5, hem], [cx - flare - 1, hem], [cx - flare + 1, r.hipY + 2]] : null;
+    fillPolygon(L, lap ?? [[cx - ww - 0.5, wy - 2], [cx + ww + 0.5, wy - 2], [cx + flare, hem], [cx - flare, hem]], tones);
     if (col.skirtStripe) for (let x = Math.round(cx - flare); x < cx + flare; x += 3) L.line(Math.round(cx + (x - cx) * 0.45), wy, x, hem - 1, col.skirtStripe);
     else for (const f of [-0.5, 0, 0.5]) L.line(Math.round(cx + f * ww), wy + 2, Math.round(cx + f * flare * 1.1), hem - 1, shade(costume.bottom === 'robe' ? col.robe : col.skirt, -0.22));
     if (col.frill) for (const y of [hem - 1, hem - 7, hem - 13]) for (let x = 0; x < 40; x += 2) if (L.opaque(x, y)) L.set(x, y, col.frill);
@@ -428,6 +450,7 @@ function drawFace(L, r, head, costume, expression, view) {
   const brow = costume.colors.brow ?? shade(costume.hair?.color ?? '#2a1d1a', -0.25);
   const blush = costume.accessories?.includes('rouge') ? '#e0737f' : null;
   const mustache = costume.accessories?.includes('mustache');
+  const beard = costume.accessories?.includes('beard');
   const set = (x, yy, c) => L.set(x, yy, c);
   if (view === 'side') {
     const e1 = head.x0 + 2;
@@ -439,6 +462,10 @@ function drawFace(L, r, head, costume, expression, view) {
     set(head.x0 - 1, y + 9, costume.skin);
     L.fillRect(e1 + 1, y + 11, 2, 1, MOUTH);
     if (mustache) L.fillRect(e1, y + 10, 4, 1, costume.hair.color);
+    if (beard) {
+      L.fillRect(e1 - 1, y + 12, 6, 2, costume.hair.color);
+      L.fillRect(e1, y + 14, 4, 1, shade(costume.hair.color, -0.2));
+    }
     if (blush) set(e2 + 1, y + 9, blush);
     return;
   }
@@ -522,6 +549,13 @@ function drawFace(L, r, head, costume, expression, view) {
     set(Rx + 2, y + 10, blush);
   }
   if (mustache) L.fillRect(cx - 2, y + 11, 6, 1, costume.hair.color);
+  if (beard) {
+    // A full black beard along the jaw, leaving the mouth line showing.
+    L.fillRect(cx - 3, y + 12, 8, 2, costume.hair.color);
+    L.fillRect(cx - 2, y + 14, 6, 1, shade(costume.hair.color, -0.2));
+    set(cx - 4, y + 11, costume.hair.color);
+    set(cx + 5, y + 11, costume.hair.color);
+  }
 }
 
 // Spiky, strand-shaded hair. Spikes are seeded per costume so each character's hair differs.
@@ -626,9 +660,21 @@ function drawFan(r, costume) {
 // ---------- frame composition ----------
 
 export function drawFrame(costume, { dir = 'down', mode = 'idle', frame = 0, expression = null, gesture = null } = {}) {
+  if (mode === 'sit') return drawSeated(costume, dir);
   const base = expression || gesture ? IDLE[0] : mode === 'walk' ? WALK[((frame % WALK_FRAMES) + WALK_FRAMES) % WALK_FRAMES] : IDLE[((frame % IDLE_FRAMES) + IDLE_FRAMES) % IDLE_FRAMES];
   const view = gesture || expression ? 'down' : dir === 'left' || dir === 'right' ? 'side' : dir;
-  const pose = { ...base, view, gesture };
+  const pose = { ...base, view, gesture, sit: false };
+  return drawPose(costume, dir, pose, { expression, gesture });
+}
+
+// Seated, facing dir: the idle pose with the hips on the seat and the legs bent.
+function drawSeated(costume, dir) {
+  const view = dir === 'left' || dir === 'right' ? 'side' : dir;
+  return drawPose(costume, dir, { ...IDLE[0], view, gesture: null, sit: true }, { expression: null, gesture: null });
+}
+
+function drawPose(costume, dir, pose, { expression, gesture }) {
+  const view = pose.view;
   const r = rig(costume, pose);
   const layers = [];
 
@@ -673,6 +719,7 @@ export function drawCharacterSheet(costume) {
   });
   EXPRESSIONS.forEach((expression, col) => put(drawFrame(costume, { expression }), col, 4));
   GESTURES.forEach((gesture, col) => put(drawFrame(costume, { gesture }), col, 5));
+  DIRS.forEach((dir, col) => put(drawFrame(costume, { dir, mode: 'sit' }), col, 6));
   return sheet;
 }
 
@@ -690,7 +737,7 @@ export function drawPortrait(costume, expression = 'neutral') {
 }
 
 // Named animation index for the procedural sheet: { name: [{ col, row }, ...] }.
-// Names: walk_<dir> / idle_<dir> (dir = down|left|right|up), expression_<name>, gesture_<name>.
+// Names: walk_<dir> / idle_<dir> / sit_<dir> (dir = down|left|right|up), expression_<name>, gesture_<name>.
 export function sheetAnims() {
   const anims = {};
   DIRS.forEach((dir, row) => {
@@ -699,5 +746,6 @@ export function sheetAnims() {
   });
   EXPRESSIONS.forEach((name, col) => (anims[`expression_${name}`] = [{ col, row: 4 }]));
   GESTURES.forEach((name, col) => (anims[`gesture_${name}`] = [{ col, row: 5 }]));
+  DIRS.forEach((dir, col) => (anims[`sit_${dir}`] = [{ col, row: 6 }]));
   return anims;
 }

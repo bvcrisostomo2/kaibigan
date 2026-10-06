@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { checkMaps, drawHandmadeFrame, handmadeFrames, drawHandmadeSheet, WALK } from '../../src/art/handmade.js';
-import { legRows, LEG_POSES } from '../../src/art/cast/legs.js';
+import { legRows, LEG_POSES, sitLegRows } from '../../src/art/cast/legs.js';
 import { ibarra } from '../../src/art/cast/ibarra.js';
 import { HANDMADE } from '../../src/art/cast/index.js';
 import { CELL_W, CELL_H } from '../../src/art/characters.js';
@@ -27,6 +27,7 @@ describe('hand-authored maps', () => {
       for (const pose of Object.keys(poses)) for (const row of legRows(view, pose)) expect(row).toHaveLength(27);
     }
     expect(() => legRows('front', 'cartwheel')).toThrow("No 'cartwheel' legs for the front view");
+    for (const view of ['front', 'side', 'back']) for (const row of sitLegRows(view)) expect(row).toHaveLength(27);
   });
 
   it('rejects a view the character does not have', () => {
@@ -42,6 +43,18 @@ describe('hand-authored sheets', () => {
       expect(frames[`idle_${dir}`]).toHaveLength(1);
       expect(frames[`walk_${dir}`]).toHaveLength(WALK.front.length);
     }
+  });
+
+  it('sits in all four views: lower, with the feet on the walking baseline', () => {
+    for (const dir of ['down', 'up', 'right', 'left']) {
+      expect(frames[`sit_${dir}`]).toHaveLength(1);
+      const top = (c) => { for (let y = 0; y < CELL_H; y++) for (let x = 0; x < CELL_W; x++) if (c.opaque(x, y)) return y; return -1; };
+      expect(top(frames[`sit_${dir}`][0]), dir).toBeGreaterThan(top(frames[`idle_${dir}`][0]));
+      expect(Math.abs(lowestRow(frames[`sit_${dir}`][0]) - lowestRow(frames[`idle_${dir}`][0])), dir).toBeLessThanOrEqual(1);
+    }
+    const r = frames.sit_right[0];
+    const l = frames.sit_left[0];
+    for (let y = 0; y < CELL_H; y++) for (let x = 0; x < CELL_W; x++) expect(l.get(x, y)).toBe(r.get(CELL_W - 1 - x, y));
   });
 
   it('the left view mirrors the right', () => {

@@ -8,7 +8,7 @@
 // server: a production build never bundles local frames, even when the folder exists. When the
 // folder is absent (a fresh clone) nothing is loaded and every character keeps its shipped art.
 //
-// Animation folders are <kind>_<view>, kind = walk | run | idle, view = front | back | left |
+// Animation folders are <kind>_<view>, kind = walk | run | idle | sit, view = front | back | left |
 // right | right_front | right_back | left_front | left_back. Missing left diagonals are mirrored
 // from the right ones. A solid background colour (each frame's top-left pixel) is keyed out.
 // Frames of different sizes are packed into uniform cells, centred and bottom-aligned per
@@ -53,7 +53,7 @@ export function groupFrames(urlsByPath) {
 export function planAnimations(folders) {
   const anims = {};
   for (const [folder, urls] of Object.entries(folders)) {
-    const m = /^(walk|run|idle)_(.+)$/.exec(folder);
+    const m = /^(walk|run|idle|sit)_(.+)$/.exec(folder);
     if (!m || !VIEW_TO_DIR[m[2]]) continue;
     anims[`${m[1]}_${VIEW_TO_DIR[m[2]]}`] = { urls, mirror: false };
   }

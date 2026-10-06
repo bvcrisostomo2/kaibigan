@@ -37,6 +37,9 @@ describe('evaluate', () => {
     [{ all: [{ flag: 'a' }, { tiwalaAtLeast: 9 }] }, false],
     [{ any: [{ flag: 'z' }, { tiwalaAtLeast: 1 }] }, true],
     [{ any: [{ flag: 'z' }, { tiwalaAtLeast: 9 }] }, false],
+    [{ countAtLeast: { n: 2, flags: ['a', 'z', 'b'] } }, true],
+    [{ countAtLeast: { n: 3, flags: ['a', 'z', 'b'] } }, false],
+    [{ countAtLeast: { n: 0, flags: [] } }, true],
   ])('%j gives %s', (cond, expected) => {
     expect(evaluate(cond, s)).toBe(expected);
   });
@@ -53,7 +56,7 @@ describe('evaluate', () => {
 
 describe('flagsReadBy', () => {
   it('collects flags from every nesting level', () => {
-    const cond = { flag: 'a', notFlag: 'b', any: [{ flagsAll: ['c'] }, { all: [{ flagsAny: ['d'] }] }], tiwalaAtLeast: 1 };
-    expect([...flagsReadBy(cond)].sort()).toEqual(['a', 'b', 'c', 'd']);
+    const cond = { flag: 'a', notFlag: 'b', any: [{ flagsAll: ['c'] }, { all: [{ flagsAny: ['d'] }, { countAtLeast: { n: 1, flags: ['e'] } }] }], tiwalaAtLeast: 1 };
+    expect([...flagsReadBy(cond)].sort()).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 });

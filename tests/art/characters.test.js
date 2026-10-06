@@ -20,6 +20,7 @@ describe('cellFor', () => {
     expect(cellFor({ dir: 'up', mode: 'idle', frame: 1 })).toEqual({ col: 5, row: 3 });
     expect(cellFor({ expression: 'shock' })).toEqual({ col: 3, row: 4 });
     expect(cellFor({ gesture: 'fan' })).toEqual({ col: 2, row: 5 });
+    expect(cellFor({ dir: 'up', mode: 'sit' })).toEqual({ col: 3, row: 6 });
   });
 
   it('rejects unknown values', () => {
@@ -39,6 +40,7 @@ describe('sheetAnims', () => {
     }
     for (const e of EXPRESSIONS) expect(anims[`expression_${e}`]).toEqual([{ col: EXPRESSIONS.indexOf(e), row: 4 }]);
     for (const g of GESTURES) expect(anims[`gesture_${g}`]).toEqual([{ col: GESTURES.indexOf(g), row: 5 }]);
+    DIRS.forEach((dir, col) => expect(anims[`sit_${dir}`]).toEqual([{ col, row: 6 }]));
   });
 });
 
@@ -58,6 +60,19 @@ describe('procedural sprites', () => {
       expect(topRow(c)).toBeGreaterThanOrEqual(0);
       expect(lowestRow(c)).toBeLessThan(CELL_H - 1);
     }
+  });
+
+  it.each(Object.keys(COSTUMES))('%s sits in every view: lower, with the feet still on the floor', (id) => {
+    for (const dir of DIRS) {
+      const standing = drawFrame(COSTUMES[id], { dir });
+      const seated = drawFrame(COSTUMES[id], { dir, mode: 'sit' });
+      expect(seated.coverage()).toBeGreaterThan(300);
+      expect(topRow(seated), dir).toBeGreaterThan(topRow(standing));
+      expect(Math.abs(lowestRow(seated) - lowestRow(standing)), dir).toBeLessThanOrEqual(1);
+    }
+    const left = drawFrame(COSTUMES[id], { dir: 'left', mode: 'sit' });
+    const right = drawFrame(COSTUMES[id], { dir: 'right', mode: 'sit' });
+    for (let y = 0; y < CELL_H; y++) for (let x = 0; x < CELL_W; x++) expect(right.get(x, y)).toBe(left.get(CELL_W - 1 - x, y));
   });
 
   it('is deterministic', () => {

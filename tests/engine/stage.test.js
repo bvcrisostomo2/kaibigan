@@ -12,6 +12,9 @@ function fakeActor(x = 0, z = 0) {
     setMotion: vi.fn(),
     face: vi.fn(),
     emote: vi.fn(),
+    seated: false,
+    sit: vi.fn(function (dir) { this.seated = true; this.dir = dir; }),
+    stand: vi.fn(function () { this.seated = false; }),
   };
 }
 
@@ -102,6 +105,23 @@ describe('createStage', () => {
     await stage.run(['fadeIn']);
     expect(fader.fadeOut).toHaveBeenCalledWith(0.5);
     expect(fader.fadeIn).toHaveBeenCalled();
+  });
+
+  it('seats an actor on a spot, and stands it up clear of the chair', async () => {
+    const chair = { x: 4.75, z: -0.25, w: 0.5, d: 0.5, y0: 0, y1: 2 };
+    const { stage, actors } = setup({ blockers: [chair] });
+    const ibarra = actors.get('ibarra');
+    stage.run(['moveTo', 'ibarra', 'far']);
+    await stage.run(['sit', 'ibarra', 'door', 'down']);
+    expect(stage.busy).toBe(false); // the pending walk is dropped
+    expect(ibarra.position.toArray()).toEqual([5, 0, 0]);
+    expect(ibarra.sit).toHaveBeenCalledWith('down');
+    await stage.run(['stand', 'ibarra']);
+    expect(ibarra.stand).toHaveBeenCalled();
+    expect(ibarra.position.z).toBeLessThan(-0.4); // stepped back, away from the table side it faced
+    expect(Math.abs(ibarra.position.x - 5)).toBeLessThan(0.01);
+    await stage.run(['stand', 'tiago']); // not seated: nothing moves
+    expect(actors.get('tiago').position.toArray()).toEqual([3, 0, 3]);
   });
 
   it('waits for the given seconds', async () => {

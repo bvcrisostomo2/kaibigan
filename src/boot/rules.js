@@ -18,3 +18,16 @@ export function ambienceFor(zone, time, indoorZones) {
     music: 0.3,
   };
 }
+
+// Put the player at a point (Reset position, spec §6.2): a seated player stands up first, so they
+// never sit in mid-air.
+export function placePlayer(player, point) {
+  player.stand();
+  player.object.position.copy(point);
+}
+
+// Whether the player walks this frame (spec §4.2, §6.2): only in a game, with no screen open and
+// no scene running (a beat's actions or a conversation), so scenes play out undisturbed.
+export function inPlay(game) {
+  return game != null && !game.ui.isBlocking && !game.director.busy;
+}
