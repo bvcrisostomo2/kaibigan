@@ -1,6 +1,8 @@
-// Plan 3 boot: the sandbox scene driven by the story core and the UI, playing the throwaway demo
-// chapter (spec §5.1): title → letter or code → play → chapter-end card → title. Plan 4 replaces
-// this with the real game boot. main.js opens the Plan 2 engine sandbox instead with ?engine.
+// The game boot (spec §5): engine + story + UI for any chapter content.
+//   startGame(container, { level, cast, chapter, glossary, notes, hints, letter })
+// Title → letter or code → play → Quit or chapter end → title. main.js passes Chapter 1; the dev
+// modes pass the Plan 3 demo. Cast members stand at their homeSpot (or wait offstage, hidden,
+// when it is null); the level's examinables are Talk targets like people.
 import * as THREE from 'three';
 import '../ui/ui.css';
 import { createRenderer, WebGLUnavailableError } from '../engine/renderer.js';
@@ -12,7 +14,7 @@ import { createLighting } from '../engine/lighting.js';
 import { createParticles } from '../engine/particles.js';
 import { createStage } from '../engine/stage.js';
 import { createFader } from '../engine/fader.js';
-import { createAudio } from '../engine/audio.js';
+import { createAudio, LAYERS } from '../engine/audio.js';
 import { defaultQuality, detectDevice, createFpsMonitor, frameDt, QUALITY } from '../engine/quality.js';
 import { loadLocalSprites } from '../art/localSprites.js';
 import { loadLocalPortraits } from '../art/localPortraits.js';
@@ -28,18 +30,17 @@ import { createTouchView, createBannerView } from '../ui/views/touchView.js';
 import { runFrontScreens } from '../ui/frontScreens.js';
 import { createGameUi } from '../ui/gameUi.js';
 import { composeHost, routePresses } from '../ui/host.js';
-import { loadSettings, saveSettings } from '../ui/settings.js';
-import { markersFor } from '../ui/markers.js';
+import { loadSettings, saveSettings, adjustSetting } from '../ui/settings.js';
+import { markersFor, talkTarget } from '../ui/markers.js';
 import { t } from '../ui/strings.js';
-import { sandboxLevel, sandboxCast } from './sandboxLevel.js';
-import { demoChapter, demoCast, demoGlossary, demoNotes, demoHints, demoLetter } from './demoChapter.js';
+import { spawnPoint, ambienceFor } from './rules.js';
 
-const TALK_RANGE = 1.8; // Talk reaches the nearest character this close
 const LOOK_RANGE = 3; // characters turn to face the player this close
-const MARKER_HEIGHT = 1.9; // world units above an actor's feet for its "!" / "…"
-const CONTENT = { chapter: demoChapter, cast: demoCast, glossary: demoGlossary, notes: demoNotes, hints: demoHints };
+const MARKER_HEIGHT = 1.9; // world units above a person's feet for "!" / "…"
+const EXAMINE_HEIGHT = 1.2; // above an examinable's spot
 
-export async function startSandboxGame(container) {
+export async function startGame(container, content) {
+  const { level, cast, chapter, glossary, notes, hints, letter } = content;
   const [sprites, portraits] = await Promise.all([loadLocalSprites(), loadLocalPortraits()]);
   if (sprites.length || portraits.length) console.info('[game] local art:', [...sprites, ...portraits].join(', '));
   const device = detectDevice();
@@ -58,7 +59,7 @@ export async function startSandboxGame(container) {
 
   // ---- Scene ----------------------------------------------------------------------------------
   const scene = new THREE.Scene();
-  const world = buildWorld(sandboxLevel);
+  const world = buildWorld(level);
   scene.add(world.group);
   const q = QUALITY[settings.quality];
   const lighting = createLighting(scene, { shadows: true, shadowMapSize: 2048, pointLights: q.pointLights });
@@ -79,14 +80,15 @@ export async function startSandboxGame(container) {
     actors.set('player', player);
     cam.follow(player.object, { snap: true });
   }
-  const npcs = sandboxCast.map((c) => {
-    const [x, z, y] = c.at;
-    const home = new THREE.Vector3(x, y ?? world.collision.heightAt(x, z, 0) ?? 0, z);
-    const a = createActor({ id: c.id, costume: c.costume, position: home.clone(), dir: c.dir, turnSeconds: TURN_SECONDS });
+  const npcs = cast.map((c) => {
+    const home = c.homeSpot ? world.spots[c.homeSpot].clone() : world.spawn.clone();
+    const a = createActor({ id: c.id, costume: c.costume, position: home.clone(), dir: c.dir ?? 'down', turnSeconds: TURN_SECONDS });
+    a.object.visible = c.homeSpot != null;
     scene.add(a.object);
     actors.set(c.id, a);
-    return { id: c.id, actor: a, home, dir: c.dir };
+    return { id: c.id, actor: a, home, dir: c.dir ?? 'down', onstage: c.homeSpot != null };
   });
+  const examinables = (level.examinables ?? []).map((e) => ({ id: e.id, at: world.spots[e.spot] }));
   cam.follow(player.object, { snap: true });
 
   const fader = createFader(container);
@@ -108,24 +110,35 @@ export async function startSandboxGame(container) {
     })
     : null;
 
+  // ---- Audio: volume, mute and ambience by place and time (spec §4.4) --------------------------
+  let ambienceKey = null;
   function applyAudio() {
     audio.setVolume(settings.volume);
     if (audio.muted !== settings.muted) audio.toggleMute();
   }
+  function applyAmbience(zone, time) {
+    const key = `${zone}|${time}`;
+    if (key === ambienceKey || !audio.unlocked) return;
+    ambienceKey = key;
+    const levels = ambienceFor(zone, time, level.indoorZones ?? []);
+    for (const name of LAYERS) audio.setLayer(name, levels[name] ?? 0);
+  }
   applyAudio();
   const unlockAudio = () => {
     audio.unlock();
-    audio.setLayer('music', 0.35);
-    audio.setLayer('crickets', 0.2);
+    ambienceKey = null;
   };
   window.addEventListener('pointerdown', unlockAudio, { once: true });
   window.addEventListener('keydown', unlockAudio, { once: true });
 
   // ---- Game sessions --------------------------------------------------------------------------
   let game = null; // { ctx, codes, ui, director, zone, offSave }
+  const fps = createFpsMonitor(); // spec §7: suggest Low after 5 s under 30 fps on High
 
+  // A failed dialogue or cutscene: log it, fade back in (it may have faded out) and play on.
   function reportError(err) {
     console.error('[game]', err);
+    fader.fadeIn(0);
     if (import.meta.env.DEV) banner.show(t('error.banner', { message: err?.message ?? String(err) }));
   }
 
@@ -137,10 +150,11 @@ export async function startSandboxGame(container) {
     if (qualityChanged) {
       view.setQuality(settings.quality);
       cam.resize(view.resize().width / view.resize().height);
+      fps.reset();
     }
   }
 
-  // Back to the title's dusk street: nothing from the last session carries over.
+  // Back to the title's street at dusk: nothing from the last session carries over.
   function resetScene() {
     stage.cancel();
     lighting.setTime('dusk');
@@ -150,7 +164,7 @@ export async function startSandboxGame(container) {
     player.emote(null);
     for (const n of npcs) {
       n.actor.object.position.copy(n.home);
-      n.actor.object.visible = true;
+      n.actor.object.visible = n.onstage;
       n.actor.setMotion(0, 0);
       n.actor.face(n.dir);
       n.actor.emote(null);
@@ -162,7 +176,7 @@ export async function startSandboxGame(container) {
 
   function onAction(action) {
     if (action === 'resetPosition') {
-      player.object.position.copy(world.spawn);
+      player.object.position.copy(spawnPoint(chapter, game?.director.beat, world.spots, world.spawn));
       cam.follow(player.object, { snap: true });
     } else if (action === 'quit') {
       endGame();
@@ -172,16 +186,17 @@ export async function startSandboxGame(container) {
 
   function startGame({ state, beatId }) {
     const bus = createBus({ onError: reportError });
-    const ctx = { state, bus, hints: demoHints };
+    const ctx = { state, bus, hints };
     const codes = trackCheckpointCodes(ctx); // before the UI, so the Kodigo panel gets the fresh code
     const offSave = bus.on('beat:enter', () => storage && saveGame(storage, state));
     const ui = createGameUi({
-      views, ctx, codes, settings, content: CONTENT,
+      views, ctx, codes, settings,
+      content: { chapter, cast, glossary, notes, hints },
       emote: (id, face) => actors.get(id)?.emote(face),
       onSettings: applySettings,
       onAction,
     });
-    const director = createDirector({ chapter: demoChapter, ctx, host: composeHost({ stage, ui }) });
+    const director = createDirector({ chapter, ctx, host: composeHost({ stage, ui, cutscenes: chapter.cutscenes }) });
     dressPlayer(state.title === 'Doña' ? 'player_dona' : 'player_don');
     input.clear();
     game = { ctx, codes, ui, director, zone: null, offSave };
@@ -201,33 +216,31 @@ export async function startSandboxGame(container) {
 
   function showTitle() {
     resetScene();
-    runFrontScreens({ views, storage, chapters: [demoChapter], hints: demoHints, letter: demoLetter })
+    runFrontScreens({ views, storage, chapters: [chapter], hints, letter })
       .then(startGame)
       .catch(reportError);
   }
 
   // ---- Frame loop -----------------------------------------------------------------------------
   const sameFloor = (a) => Math.abs(a.position.y - player.position.y) < 1;
-  function nearestTalkable() {
-    const open = new Set(game.director.availableInteractions());
-    return npcs
-      .filter((n) => open.has(n.id) && sameFloor(n.actor))
-      .map((n) => ({ n, d: n.actor.position.distanceTo(player.position) }))
-      .filter((e) => e.d < TALK_RANGE)
-      .sort((a, b) => a.d - b.d)[0]?.n.id ?? null;
+  // Everyone and everything Talk or a marker can point at, with world positions.
+  function targets() {
+    return [
+      ...npcs.filter((n) => n.actor.object.visible).map((n) => ({ id: n.id, x: n.actor.position.x, y: n.actor.position.y, z: n.actor.position.z, height: MARKER_HEIGHT })),
+      ...examinables.map((e) => ({ id: e.id, x: e.at.x, y: e.at.y, z: e.at.z, height: EXAMINE_HEIGHT })),
+    ];
   }
 
-  function screenMarkers() {
-    const list = markersFor(npcs.map((n) => ({ id: n.id, x: n.actor.position.x, y: n.actor.position.y, z: n.actor.position.z })), player.position, {
+  function screenMarkers(list) {
+    const shown = markersFor(list, player.position, {
       dialogueFor: (id) => game.director.interactionFor(id),
       seen: (d) => hasFlag(game.ctx.state, seenFlag(d)),
     });
     const { width, height } = container.getBoundingClientRect();
-    return list.map((m) => {
-      const p = actors.get(m.id).position.clone();
-      p.y += MARKER_HEIGHT;
-      p.project(cam.camera);
-      return { ...m, x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height };
+    return shown.map((m) => {
+      const tg = list.find((x) => x.id === m.id);
+      const p = new THREE.Vector3(tg.x, tg.y + tg.height, tg.z).project(cam.camera);
+      return { ...m, x: Math.round(((p.x + 1) / 2) * width), y: Math.round(((1 - p.y) / 2) * height) };
     });
   }
 
@@ -238,7 +251,6 @@ export async function startSandboxGame(container) {
     e.preventDefault();
   }, { passive: false });
 
-  const fps = createFpsMonitor(); // spec §7: suggest Low after 5 s under 30 fps on High
   let last = performance.now();
   let time = 0;
   function frame(now = performance.now()) {
@@ -246,12 +258,18 @@ export async function startSandboxGame(container) {
     last = now;
     time += dt;
 
-    // A press can quit to the title, so routePresses stops as soon as the session ends.
-    routePresses(input.consumePressed(), () => game, () => {
-      if (game.director.busy) return;
-      const target = nearestTalkable();
-      if (target) game.director.interact(target).catch(reportError);
-    });
+    const presses = input.consumePressed();
+    // On the front screens only M does anything; in play, a press can quit to the title, so
+    // routePresses stops as soon as the session ends.
+    if (!game) {
+      if (presses.includes('mute')) applySettings(adjustSetting(settings, 'mute', 1));
+    } else {
+      routePresses(presses, () => game, () => {
+        if (game.director.busy) return;
+        const target = talkTarget(targets(), player.position, new Set(game.director.availableInteractions()));
+        if (target) game.director.interact(target).catch(reportError);
+      });
+    }
 
     const playing = game != null && !game.ui.isBlocking;
     const m = playing ? input.move() : { x: 0, z: 0, run: false };
@@ -259,24 +277,33 @@ export async function startSandboxGame(container) {
     const next = world.collision.move(player.object.position, m.x * speed, m.z * speed);
     player.object.position.set(next.x, next.y, next.z);
     player.setMotion(m.x, m.z, m.run);
+    touch?.setVisible(game != null);
     touch?.setPlaying(playing);
 
-    const zones = world.collision.zonesAt(player.position.x, player.position.z, player.position.y);
+    const zone = world.collision.zonesAt(player.position.x, player.position.z, player.position.y)[0] ?? null;
+    // Dollhouse cutaway: downstairs inside, hide the storey above (and the people up there).
+    const cut = world.cutaway != null && world.cutaway.zones.includes(zone);
+    world.upper.visible = !cut;
+    for (const n of npcs) {
+      const hide = cut && n.actor.position.y >= world.cutaway.y - 0.01;
+      for (const child of n.actor.object.children) child.visible = !hide;
+    }
     if (game) {
-      const zone = zones[0] ?? null;
       if (zone !== game.zone) {
         game.zone = zone;
         game.director.setZone(zone).catch(reportError);
       }
       if (playing) game.director.update(dt).catch(reportError);
       game.ui.update(dt);
-      game.ui.setMarkers(screenMarkers());
+      game.ui.setMarkers(screenMarkers(targets()));
       if (fps.sample(dt) && settings.quality === 'high') game.ui.notify(t('toast.lowFps'));
     }
+    applyAmbience(zone, game?.ui.time ?? 'dusk');
     stage.update(dt);
 
     for (const n of npcs) {
       const a = n.actor;
+      if (!a.object.visible) continue;
       const dx = player.position.x - a.position.x;
       const dz = player.position.z - a.position.z;
       const close = Math.hypot(dx, dz) < LOOK_RANGE && sameFloor(a);
@@ -289,7 +316,7 @@ export async function startSandboxGame(container) {
     const preset = lighting.preset;
     view.setGrade(preset.grade);
     for (const mat of world.windowMaterials) mat.emissiveIntensity = preset.windows * 0.9;
-    particles.update(dt, player.position, preset, { outdoors: zones.includes('calle') });
+    particles.update(dt, player.position, preset, { outdoors: !(level.indoorZones ?? []).includes(zone) });
     animateWorld(world, time);
     for (const a of actors.values()) a.update(dt, cam.camera);
     cam.updateOccluders(world.occluders, player.position, dt);

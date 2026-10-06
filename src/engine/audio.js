@@ -104,22 +104,30 @@ export function renderCrickets(seconds = 4, sampleRate = SAMPLE_RATE) {
   return out;
 }
 
+// Party chatter heard through the walls: noise low-passed twice into a dull murmur, swelling with
+// several slow voices, normalised to a soft peak (0.3) so it never clips or hisses.
 export function renderChatter(seconds = 6, sampleRate = SAMPLE_RATE) {
   const r = prng(17);
   const out = new Float32Array(Math.round(seconds * sampleRate));
   for (let i = 0; i < out.length; i++) out[i] = r() * 2 - 1;
-  lowpass(out, 0.12);
-  // Syllable-like swells from several voices.
+  lowpass(out, 0.05);
+  lowpass(out, 0.05);
   const env = new Float32Array(out.length);
-  for (let v = 0; v < 6; v++) {
-    let t = Math.floor(r() * sampleRate * 0.3);
+  for (let v = 0; v < 5; v++) {
+    let t = Math.floor(r() * sampleRate * 0.5);
     while (t < out.length) {
-      const len = Math.round(sampleRate * (0.12 + r() * 0.25));
-      for (let i = 0; i < len && t + i < out.length; i++) env[t + i] += Math.sin((Math.PI * i) / len) * 0.4;
-      t += len + Math.round(sampleRate * r() * 0.5);
+      const len = Math.round(sampleRate * (0.3 + r() * 0.5));
+      for (let i = 0; i < len && t + i < out.length; i++) env[t + i] += Math.sin((Math.PI * i) / len) * 0.3;
+      t += len + Math.round(sampleRate * r() * 0.6);
     }
   }
-  for (let i = 0; i < out.length; i++) out[i] *= env[i] * 2.5;
+  let peak = 0;
+  for (let i = 0; i < out.length; i++) {
+    out[i] *= 0.4 + env[i];
+    peak = Math.max(peak, Math.abs(out[i]));
+  }
+  const gain = peak > 0 ? 0.3 / peak : 0;
+  for (let i = 0; i < out.length; i++) out[i] *= gain;
   return out;
 }
 

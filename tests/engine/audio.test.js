@@ -71,3 +71,19 @@ describe('particles', () => {
     expect(clouds[1].visible).toBe(false);
   });
 });
+
+describe('party chatter', () => {
+  it('is a soft, low murmur rather than a hiss', () => {
+    const c = renderChatter(2, SAMPLE_RATE);
+    let peak = 0;
+    let energy = 0;
+    let change = 0;
+    for (let i = 1; i < c.length; i++) {
+      peak = Math.max(peak, Math.abs(c[i]));
+      energy += c[i] * c[i];
+      change += (c[i] - c[i - 1]) ** 2;
+    }
+    expect(peak).toBeLessThanOrEqual(0.3001);
+    expect(Math.sqrt(change / energy)).toBeLessThan(0.12); // little high-frequency content
+  });
+});

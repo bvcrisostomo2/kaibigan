@@ -3,7 +3,7 @@ import { createState } from '../../src/story/state.js';
 import { journalView, nextTab, JOURNAL_TABS } from '../../src/ui/journal.js';
 import { chapterEndView } from '../../src/ui/chapterEnd.js';
 import { hudView } from '../../src/ui/hud.js';
-import { markersFor, MARKER_RANGE } from '../../src/ui/markers.js';
+import { markersFor, talkTarget, MARKER_RANGE } from '../../src/ui/markers.js';
 import { createTitleCards, TITLE_CARD_TIMING } from '../../src/ui/titleCard.js';
 import { createToasts } from '../../src/ui/toasts.js';
 import { stickVector, STICK_RADIUS } from '../../src/ui/touchControls.js';
@@ -157,5 +157,22 @@ describe('stickVector', () => {
     const far = stickVector(300, 400);
     expect(Math.hypot(far.x, far.z)).toBeCloseTo(1);
     expect(stickVector(NaN, 0)).toEqual({ x: 0, z: 0 });
+  });
+});
+
+describe('talkTarget', () => {
+  const player = { x: 0, y: 0, z: 0 };
+  const targets = [
+    { id: 'isabel', x: 1.5, y: 0, z: 0 },
+    { id: 'staircase', x: 0.8, y: 0, z: 0.5 },
+    { id: 'damaso', x: 0.5, y: 3.5, z: 0 }, // upstairs
+    { id: 'far', x: MARKER_RANGE + 0.1, y: 0, z: 0 },
+  ];
+
+  it('picks the nearest open target on the same floor within the marker range', () => {
+    expect(MARKER_RANGE).toBe(2);
+    expect(talkTarget(targets, player, new Set(['isabel', 'staircase', 'damaso', 'far']))).toBe('staircase');
+    expect(talkTarget(targets, player, new Set(['isabel', 'damaso', 'far']))).toBe('isabel');
+    expect(talkTarget(targets, player, new Set(['damaso', 'far']))).toBe(null);
   });
 });

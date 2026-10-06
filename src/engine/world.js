@@ -13,6 +13,9 @@
 //   zones:   { name: { x, z, w, d, y0?, y1? } }
 //   spots:   { name: [x, z] | [x, z, y] }
 //   spawn:   [x, z] | [x, z, y]
+//   cutaway: { y, zones }                                 optional dollhouse cutaway: floors, walls,
+//            windows, roofs and props at or above y go into world.upper, which the boot hides
+//            while the player is in one of `zones` (the ground floor inside the house)
 import * as THREE from 'three';
 import { createCollision, stairFloorOverlaps } from './collision.js';
 import { makeProp, material, tiledBox } from '../art/props.js';
@@ -27,6 +30,10 @@ export function buildWorld(level) {
     throw new Error(`Floor at y ${f.y} (x ${f.x}, z ${f.z}) overlaps the stair at x ${s.x}, z ${s.z} at its ${end}`);
   }
   const group = new THREE.Group();
+  const upper = new THREE.Group(); // the storey above level.cutaway.y (empty without a cutaway)
+  group.add(upper);
+  const cutY = level.cutaway?.y ?? Infinity;
+  const into = (y) => (y >= cutY - 0.01 ? upper : group);
   const blockers = [];
   const lightSources = [];
   const occluders = [];
@@ -38,7 +45,7 @@ export function buildWorld(level) {
     const mesh = tiledBox(f.w, thick, f.d, material(f.tex));
     mesh.position.set(f.x + f.w / 2, f.y - thick / 2, f.z + f.d / 2);
     mesh.castShadow = false;
-    group.add(mesh);
+    into(f.y).add(mesh);
   }
 
   for (const s of level.stairs ?? []) {
@@ -67,7 +74,7 @@ export function buildWorld(level) {
       mesh.userData.occluder = true;
       occluders.push(mesh);
     }
-    group.add(mesh);
+    into(w.y).add(mesh);
     if (w.collide !== false) blockers.push({ x: w.x, z: w.z, w: w.w, d: w.d, y0: w.y, y1: w.y + w.h });
   }
 
@@ -92,7 +99,7 @@ export function buildWorld(level) {
       roof.add(panel);
     }
     roof.position.set(r.x + r.w / 2, r.y, r.z + r.d / 2);
-    group.add(roof);
+    into(r.y).add(roof);
   }
 
   for (const w of level.windows ?? []) {
@@ -103,7 +110,7 @@ export function buildWorld(level) {
     mesh.rotation.y = FACING[w.facing];
     mesh.userData.occluder = true;
     occluders.push(mesh);
-    group.add(mesh);
+    into(w.y).add(mesh);
   }
 
   for (const wtr of level.water ?? []) {
@@ -125,7 +132,7 @@ export function buildWorld(level) {
     const prop = makeProp(p.type, p);
     const y = p.y ?? collision.heightAt(p.x, p.z, p.floorY ?? 0) ?? 0;
     prop.object.position.set(p.x, y, p.z);
-    group.add(prop.object);
+    into(y).add(prop.object);
     if (prop.footprint && p.collide !== false) {
       blockers.push({ x: p.x - prop.footprint.w / 2, z: p.z - prop.footprint.d / 2, w: prop.footprint.w, d: prop.footprint.d, y0: y, y1: y + 2 });
     }
@@ -137,7 +144,7 @@ export function buildWorld(level) {
   for (const [name, s] of Object.entries(level.spots ?? {})) spots[name] = toPoint(s, collision);
   const spawn = level.spawn ? toPoint(level.spawn, collision) : new THREE.Vector3();
 
-  return { group, collision, lightSources, occluders, windowMaterials, animated, spots, spawn, zones: level.zones ?? {} };
+  return { group, upper, cutaway: level.cutaway ?? null, collision, lightSources, occluders, windowMaterials, animated, spots, spawn, zones: level.zones ?? {} };
 }
 
 function toPoint([x, z, y], collision) {

@@ -126,6 +126,13 @@ describe('createGameUi: a chapter played through the UI', () => {
     expect(views.kodigo.visible).toBe(false);
   });
 
+  it('reports the current time of day for the ambience', () => {
+    const { ui } = setup();
+    expect(ui.time).toBe(null);
+    ui.setTime('evening');
+    expect(ui.time).toBe('evening');
+  });
+
   it('updates the HUD location on beat entry and the time from setTime', async () => {
     const { views, ui, director } = setup();
     director.start();
@@ -197,6 +204,36 @@ describe('createGameUi: screens and commands', () => {
     ui.command('menu');
     ui.command('menu'); // Esc again closes it
     expect(views.menu.visible).toBe(false);
+  });
+
+  it('lets M (mute) and H (controls) work while a menu, the Journal or a dialogue is open', () => {
+    const { views, ui, onSettings } = setup();
+    ui.command('menu');
+    expect(ui.command('mute')).toBe(true);
+    expect(onSettings).toHaveBeenLastCalledWith(expect.objectContaining({ muted: true }));
+    expect(views.menu.vm.rows.find((r) => r.id === 'mute').value).toBe('Off');
+    ui.command('menu');
+    ui.command('journal');
+    ui.command('toggleControls');
+    expect(views.hud.vm.controls).toBe(null);
+    expect(views.journal.visible).toBe(true);
+  });
+
+  it('labels the menu arrows and close button from the string table', () => {
+    const { views, ui } = setup();
+    ui.command('menu');
+    expect(views.menu.vm.labels).toEqual({ less: 'Less', more: 'More', close: 'Close menu' });
+  });
+
+  it('redraws markers only when they change', () => {
+    const { views, ui } = setup();
+    const list = [{ id: 'isabel', kind: '!', x: 10, y: 20 }];
+    ui.setMarkers(list);
+    const after = views.markers.renders;
+    ui.setMarkers([{ ...list[0] }]);
+    expect(views.markers.renders).toBe(after);
+    ui.setMarkers([{ ...list[0], x: 11 }]);
+    expect(views.markers.renders).toBe(after + 1);
   });
 
   it('toggles mute from M and leaves Talk to the game when nothing is open', () => {
@@ -327,5 +364,33 @@ describe('routePresses', () => {
     const talk = vi.fn();
     expect(() => routePresses(['interact', 'journal', 'menu', 'nav_down', 'interact'], () => session, talk)).not.toThrow();
     expect(talk).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('composeHost cutscenes', () => {
+  it('runs a named cutscene action by action through the host, and rejects unknown ones', async () => {
+    const order = [];
+    const stage = { handles: () => true, run: vi.fn(async (a) => { order.push(a[0]); }) };
+    const ui = { disposed: false, run: vi.fn(), runDialogue: vi.fn(), setTime: vi.fn() };
+    const host = composeHost({ stage, ui, cutscenes: { shadow: [['moveTo', 'guard', 'door'], ['setTime', 'night', 1], ['wait', 1]] } });
+    await host.run(['cutscene', 'shadow']);
+    expect(order).toEqual(['moveTo', 'setTime', 'wait']);
+    expect(ui.setTime).toHaveBeenCalledWith('night');
+    await expect(host.run(['cutscene', 'nope'])).rejects.toThrow("Cutscene 'nope' not found");
+  });
+
+  it('stops a cutscene part-way when the UI is disposed', async () => {
+    let finish;
+    const stage = { handles: () => true, run: vi.fn((a) => (a[0] === 'wait' ? new Promise((r) => (finish = r)) : Promise.resolve())) };
+    const ui = { disposed: false, run: vi.fn(), runDialogue: vi.fn(), setTime() {} };
+    const host = composeHost({ stage, ui, cutscenes: { s: [['wait', 1], ['moveTo', 'a', 'b']] } });
+    let done = false;
+    host.run(['cutscene', 's']).then(() => (done = true));
+    await flush();
+    ui.disposed = true;
+    finish();
+    await flush();
+    expect(done).toBe(false);
+    expect(stage.run).toHaveBeenCalledTimes(1);
   });
 });

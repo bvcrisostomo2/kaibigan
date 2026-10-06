@@ -18,7 +18,11 @@ export function createTouchView(root, { labels, onMove, onPress }) {
     pointer = e.pointerId;
     const r = stick.getBoundingClientRect();
     centre = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    stick.setPointerCapture(e.pointerId);
+    try {
+      stick.setPointerCapture(e.pointerId);
+    } catch {
+      // The pointer is already gone (or synthetic): the drag still works without capture.
+    }
     e.preventDefault();
   });
   stick.addEventListener('pointermove', (e) => {
@@ -44,6 +48,11 @@ export function createTouchView(root, { labels, onMove, onPress }) {
     h('div', { class: 'ui-touch-top' }, button('', labels.journal, 'journal'), button('', labels.menu, 'menu')));
   root.append(el);
   return {
+    // Hidden entirely on the front screens (title, letter, code entry), where nothing is playing.
+    setVisible(visible) {
+      el.hidden = !visible;
+      if (!visible && pointer != null) release();
+    },
     // The joystick and Talk hide while a blocking screen is open (its own buttons take taps).
     setPlaying(playing) {
       el.classList.toggle('is-blocked', !playing);

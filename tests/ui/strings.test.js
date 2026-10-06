@@ -33,9 +33,9 @@ describe('strings/en.js', () => {
     .filter((f) => f.endsWith('.js'))
     .map((f) => join(dir, f));
 
-  it('has every literal key that src/ui and src/sandbox pass to t()', () => {
+  it('has every literal key that src/ui, src/sandbox, src/boot and main.js pass to t()', () => {
     const missing = [];
-    for (const file of [...sourceFiles('src/ui'), ...sourceFiles('src/sandbox')]) {
+    for (const file of [...sourceFiles('src/ui'), ...sourceFiles('src/sandbox'), ...sourceFiles('src/boot'), 'src/main.js']) {
       for (const m of readFileSync(file, 'utf8').matchAll(/\bt\('([a-zA-Z0-9_.]+)'/g)) {
         if (EN[m[1]] == null) missing.push(`${file}: ${m[1]}`);
       }

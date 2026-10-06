@@ -87,3 +87,14 @@ describe('demo chapter playthrough (headless)', () => {
     expect(director.ended).toBe(true);
   });
 });
+
+describe('demo content bundle (?demo)', () => {
+  it('places every demo cast member at a real spot on the sandbox level', async () => {
+    const { demoContent } = await import('../../src/sandbox/demoContent.js');
+    const { buildWorld } = await import('../../src/engine/world.js');
+    const world = buildWorld(demoContent.level);
+    for (const c of demoContent.cast) expect(world.spots[c.homeSpot], c.id).toBeDefined();
+    for (const z of demoContent.level.indoorZones) expect(Object.keys(demoContent.level.zones)).toContain(z);
+    expect(demoContent.chapter).toBe(demoChapter);
+  });
+});
