@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spawnPoint, ambienceFor } from '../../src/boot/rules.js';
+import { spawnPoint, ambienceFor, inPlay } from '../../src/boot/rules.js';
 
 describe('spawnPoint', () => {
   const chapter = { beats: [{ id: 'a', spawn: 'door' }, { id: 'b' }, { id: 'c', spawn: 'gone' }] };
@@ -24,5 +24,16 @@ describe('ambienceFor', () => {
     expect(ambienceFor('calle', 'night', indoor).crickets).toBe(0.4);
     expect(ambienceFor('sala', 'night', indoor).crickets).toBe(0);
     expect(ambienceFor(null, 'dusk', indoor).river).toBe(0.5);
+  });
+});
+
+describe('inPlay', () => {
+  const game = (isBlocking, busy) => ({ ui: { isBlocking }, director: { busy } });
+
+  it('lets the player walk only between scenes, with no screen open', () => {
+    expect(inPlay(game(false, false))).toBe(true);
+    expect(inPlay(game(true, false))).toBe(false); // a dialogue, the Journal or a menu
+    expect(inPlay(game(false, true))).toBe(false); // a scene: a beat's actions are running
+    expect(inPlay(null)).toBe(false); // the front screens
   });
 });

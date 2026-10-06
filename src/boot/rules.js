@@ -18,3 +18,9 @@ export function ambienceFor(zone, time, indoorZones) {
     music: 0.3,
   };
 }
+
+// Whether the player walks this frame (spec §4.2, §6.2): only in a game, with no screen open and
+// no scene running (a beat's actions or a conversation), so scenes play out undisturbed.
+export function inPlay(game) {
+  return game != null && !game.ui.isBlocking && !game.director.busy;
+}

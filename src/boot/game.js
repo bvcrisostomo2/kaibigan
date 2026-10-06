@@ -33,7 +33,7 @@ import { composeHost, routePresses } from '../ui/host.js';
 import { loadSettings, saveSettings, adjustSetting } from '../ui/settings.js';
 import { markersFor, talkTarget } from '../ui/markers.js';
 import { t } from '../ui/strings.js';
-import { spawnPoint, ambienceFor } from './rules.js';
+import { spawnPoint, ambienceFor, inPlay } from './rules.js';
 
 const LOOK_RANGE = 3; // characters turn to face the player this close
 const MARKER_HEIGHT = 1.9; // world units above a person's feet for "!" / "…"
@@ -160,9 +160,11 @@ export async function startGame(container, content) {
     lighting.setTime('dusk');
     player.object.position.copy(world.spawn);
     player.object.visible = true;
+    player.stand();
     player.setMotion(0, 0);
     player.emote(null);
     for (const n of npcs) {
+      n.actor.stand();
       n.actor.object.position.copy(n.home);
       n.actor.object.visible = n.onstage;
       n.actor.setMotion(0, 0);
@@ -271,8 +273,10 @@ export async function startGame(container, content) {
       });
     }
 
-    const playing = game != null && !game.ui.isBlocking;
+    const playing = inPlay(game);
     const m = playing ? input.move() : { x: 0, z: 0, run: false };
+    // A seated player who moves first steps clear of the chair.
+    if (player.seated && (m.x || m.z)) stage.run(['stand', 'player']);
     const speed = (m.run ? RUN_SPEED : WALK_SPEED) * dt;
     const next = world.collision.move(player.object.position, m.x * speed, m.z * speed);
     player.object.position.set(next.x, next.y, next.z);
@@ -303,7 +307,7 @@ export async function startGame(container, content) {
 
     for (const n of npcs) {
       const a = n.actor;
-      if (!a.object.visible) continue;
+      if (!a.object.visible || a.seated) continue; // diners keep facing the table
       const dx = player.position.x - a.position.x;
       const dz = player.position.z - a.position.z;
       const close = Math.hypot(dx, dz) < LOOK_RANGE && sameFloor(a);
