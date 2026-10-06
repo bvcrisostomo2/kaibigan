@@ -40,6 +40,11 @@ describe('portraitPixels', () => {
     expect(same(portraitPixels('damaso', 'angry'), portraitPixels('damaso', 'smile'))).toBe(false);
   });
 
+  it('reuses a generated portrait instead of redrawing it', () => {
+    expect(portraitPixels('damaso', 'angry')).toBe(portraitPixels('damaso', 'angry'));
+    expect(portraitPixels('ibarra', 'smile')).toBe(portraitPixels('ibarra', 'smile'));
+  });
+
   it('throws for an unknown costume', () => {
     expect(() => portraitPixels('nobody')).toThrow("Unknown costume 'nobody'");
   });

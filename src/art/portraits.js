@@ -58,12 +58,20 @@ export function headCrop(frame) {
   return out;
 }
 
-// A costume's generated portrait. Throws for an unknown costume.
-export function portraitPixels(costumeId, expression = 'neutral') {
+function drawGenerated(costumeId, expression) {
   if (HANDMADE[costumeId]) return headCrop(handmadeFrames(HANDMADE[costumeId]).idle_down[0]);
   const costume = COSTUMES[costumeId];
   if (!costume) throw new Error(`Unknown costume '${costumeId}'`);
   return drawPortrait(costume, expression);
+}
+
+const generated = new Map(); // 'costumeId_expression' → pixels, drawn once (callers must not modify)
+
+// A costume's generated portrait. Throws for an unknown costume.
+export function portraitPixels(costumeId, expression = 'neutral') {
+  const key = `${costumeId}_${expression}`;
+  if (!generated.has(key)) generated.set(key, drawGenerated(costumeId, expression));
+  return generated.get(key);
 }
 
 // What to show: { kind: 'image', url } or { kind: 'pixels', pixels }.
