@@ -209,6 +209,13 @@ describe('Chapter 1, Kabanata I–III (headless)', () => {
     expect(trackCheckpointCodes(b.ctx).latest).toBeNull();
   });
 
+  it('gives each book line to the character who says it in the book', () => {
+    const text = (id) => Object.values(chapter1.dialogues[id].nodes).map((n) => n.text ?? '').join(' ');
+    expect(text('k1_laruja')).not.toContain('made of the right stuff'); // Dámaso's line in Chapter I
+    const told = Object.keys(chapter1.dialogues).filter((id) => text(id).includes('gunpowder'));
+    expect(told).toEqual(['k1_espadanas']); // the gunpowder joke is told once
+  });
+
   it('sets the time and keeps Isabel offstage in every beat that can be resumed', () => {
     const times = { k1_greeting: 'dusk', k1_sala: 'dusk', k1_argument: 'dusk', k2_entrance: 'evening', k3_dinner: 'night' };
     for (const [id, time] of Object.entries(times)) {

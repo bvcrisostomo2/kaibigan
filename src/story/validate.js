@@ -169,6 +169,8 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
     if (h.setFlag) flagsSet.add(h.setFlag);
   });
 
+  for (const ch of chapters) (ch.endCard?.standings ?? []).forEach((s, i) => checkCondition(s.if, `endCard.standings[${i}]`));
+
   if (endings.length) {
     if (endings.at(-1).if != null) errors.push(`endings: the last ending must have no 'if' (default)`);
     endings.forEach((e) => checkCondition(e.if, `ending '${e.id}'`));

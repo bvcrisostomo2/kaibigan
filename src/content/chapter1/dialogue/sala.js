@@ -44,7 +44,7 @@ export const salaDialogues = {
   }),
   k1_laruja: dialogue('k1_laruja', {
     a: { who: 'narrator', text: 'Señor Laruja: a very small man with a black beard, and a nose which, to judge from its size, ought not to belong to him.', effects: { bio: 'laruja' }, next: 'b' },
-    b: { who: 'laruja', text: 'He is in a bad humour because nobody treated him with deference. Our host? Santiago is made of the right stuff. Though he is not the man who invented gunpowder, eh?', next: null },
+    b: { who: 'laruja', text: 'He is in a bad humour because nobody treated him with deference. You will see: a few months in this country, and the newcomer will think as we do. Everyone does.', next: null },
   }),
   k1_newcomer: dialogue('k1_newcomer', {
     a: { who: 'newcomer', text: 'Forgive me, but you are a native of the country, are you not? I have been here four days, at my own expense, to study it. Tell me honestly: this indolence they speak of. Is it true?', effects: { bio: 'newcomer' }, next: 'b' },

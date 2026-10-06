@@ -82,6 +82,14 @@ describe('validateContent', () => {
     expect(errorsFor((ch) => { ch.beats[1].trigger = { countAtLeast: { n: 2, flags: ['seen:greet'] } }; })).toContain("beat 'dinner'.trigger: countAtLeast needs { n, flags } with 1 ≤ n ≤ flags.length");
   });
 
+  it("checks the end card's standing conditions like any other", () => {
+    expect(errorsFor((ch) => { ch.endCard = { standings: [{ if: { flag: 'seen:greet' }, text: 'x' }] }; })).toEqual([]);
+    expect(errorsFor((ch) => { ch.endCard = { standings: [{ if: { flagg: 'a' }, text: 'x' }] }; })).toContain("endCard.standings[0]: unknown condition key 'flagg'");
+    const typo = base();
+    typo.chapters[0].endCard = { standings: [{ if: { flag: 'ch1_tactfull' }, text: 'x' }] };
+    expect(validateContent(typo).warnings).toContain("endCard.standings[0]: flag 'ch1_tactfull' is never set (fine only if a later chapter sets it)");
+  });
+
   it('requires a default ending', () => {
     const { errors } = validateContent(base({ endings: [{ id: 'x', if: { flag: 'a' } }] }));
     expect(errors).toContain("endings: the last ending must have no 'if' (default)");

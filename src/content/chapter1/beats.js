@@ -117,7 +117,7 @@ export const chapter1Beats = [
       ['fadeIn', 0.3], ['titleCard', 3],
       ['dialogue', 'k3_seating'],
       ['dialogue', 'k3_table_talk'],
-      ['stand', 'ibarra'], ['moveTo', 'ibarra', 'isabel_stairhead'], ['hide', 'ibarra'],
+      ['stand', 'ibarra'], ['moveTo', 'ibarra', 'ibarra_exit_1'], ['moveTo', 'ibarra', 'ibarra_exit_2'], ['moveTo', 'ibarra', 'isabel_stairhead'], ['hide', 'ibarra'],
       ['dialogue', 'k3_after'],
       ['endChapter'],
     ],

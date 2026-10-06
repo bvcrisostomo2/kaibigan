@@ -108,10 +108,9 @@ export const chapter1Level = {
     { type: 'wallLantern', x: 20.6, z: 22.1, y: 2.2 },
     // caída: tonight's dining room
     { type: 'table', x: 19, z: 10, y: UP, w: 15, d: 1.4 },
-    ...[12.5, 15, 17.5, 20, 22.5, 25].flatMap((x) => [
-      { type: 'chair', x, z: 8.9, y: UP, rot: 0 },
-      { type: 'chair', x, z: 11.1, y: UP, rot: 2 },
-    ]),
+    // nine diners, nine chairs: five along the north side, three along the south, one at the head
+    ...[12.5, 15, 17.5, 20, 22.5].map((x) => ({ type: 'chair', x, z: 8.9, y: UP, rot: 0 })),
+    ...[12.5, 15, 17.5].map((x) => ({ type: 'chair', x, z: 11.1, y: UP, rot: 2 })),
     { type: 'chair', x: 10.9, z: 10, y: UP, rot: 3 }, // the head of the table
     { type: 'candles', x: 14, z: 10, y: UP + 0.86 },
     { type: 'candles', x: 19, z: 10, y: UP + 0.86 },
@@ -193,6 +192,9 @@ export const chapter1Level = {
     seat_victorina: [15, 11.1, UP],
     seat_tiburcio: [17.5, 11.1, UP],
     tiago_table: [16.3, 7.9, UP],
+    // Ibarra's way out: behind the north chairs, then east along the caída to the stairs
+    ibarra_exit_1: [15, 7.4, UP],
+    ibarra_exit_2: [27.5, 7.4, UP],
     lane_guevarra: [46, 15],
     river_ibarra: [46.5, 4.3],
     bridge_end: [46.5, 1.2],

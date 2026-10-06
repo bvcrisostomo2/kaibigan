@@ -33,7 +33,7 @@ import { composeHost, routePresses } from '../ui/host.js';
 import { loadSettings, saveSettings, adjustSetting } from '../ui/settings.js';
 import { markersFor, talkTarget } from '../ui/markers.js';
 import { t } from '../ui/strings.js';
-import { spawnPoint, ambienceFor, inPlay } from './rules.js';
+import { spawnPoint, ambienceFor, inPlay, placePlayer } from './rules.js';
 
 const LOOK_RANGE = 3; // characters turn to face the player this close
 const MARKER_HEIGHT = 1.9; // world units above a person's feet for "!" / "…"
@@ -178,7 +178,7 @@ export async function startGame(container, content) {
 
   function onAction(action) {
     if (action === 'resetPosition') {
-      player.object.position.copy(spawnPoint(chapter, game?.director.beat, world.spots, world.spawn));
+      placePlayer(player, spawnPoint(chapter, game?.director.beat, world.spots, world.spawn));
       cam.follow(player.object, { snap: true });
     } else if (action === 'quit') {
       endGame();
