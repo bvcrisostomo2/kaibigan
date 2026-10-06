@@ -32,6 +32,13 @@ describe('planAnimations', () => {
     expect(plan.idle_right).toEqual({ urls: ['l'], mirror: true });
   });
 
+  it('maps seated folders and mirrors them like the others', () => {
+    const plan = planAnimations({ sit_front: ['f'], sit_back: ['b'], sit_right: ['r'] });
+    expect(plan.sit_down).toEqual({ urls: ['f'], mirror: false });
+    expect(plan.sit_up).toEqual({ urls: ['b'], mirror: false });
+    expect(plan.sit_left).toEqual({ urls: ['r'], mirror: true });
+  });
+
   it('never replaces a drawn view with a mirror', () => {
     const plan = planAnimations({ walk_right: ['r'], walk_left: ['l'] });
     expect(plan.walk_left).toEqual({ urls: ['l'], mirror: false });

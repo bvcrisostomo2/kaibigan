@@ -3,7 +3,7 @@
 // optional swinging arm layers for the side view, and a leg style (art/cast/legs.js).
 import { PixelCanvas } from './pixel.js';
 import { CELL_W, CELL_H } from './characters.js';
-import { HIP_Y, LEG_POSES, legRows } from './cast/legs.js';
+import { HIP_Y, LEG_POSES, legRows, sitLegRows, SEAT_DROP } from './cast/legs.js';
 
 export const VIEWS = ['front', 'side', 'back'];
 
@@ -46,13 +46,15 @@ function paint(canvas, rows, [x0, y0], palette) {
   });
 }
 
-// One frame: legs, far arm, body, near arm (bob shifts everything above the legs).
-export function drawHandmadeFrame(character, { view = 'front', legs = 'idle', bob = 0, arms = 'idle' } = {}) {
+// One frame: legs, far arm, body, near arm (bob shifts everything above the legs). Seated,
+// the body sinks SEAT_DROP rows onto the chair and the legs bend (cast/legs.js).
+export function drawHandmadeFrame(character, { view = 'front', legs = 'idle', bob = 0, arms = 'idle', sit = false } = {}) {
   const map = character[view];
   if (!map) throw new Error(`No '${view}' view for this character`);
   const c = new PixelCanvas(CELL_W, CELL_H);
-  const [mx, my] = map.at;
-  paint(c, legRows(view, legs), [mx, HIP_Y], character.palette);
+  const [mx, my0] = map.at;
+  const my = my0 + (sit ? SEAT_DROP : 0);
+  paint(c, sit ? sitLegRows(view) : legRows(view, legs), [mx, HIP_Y + (sit ? SEAT_DROP : 0)], character.palette);
   const armLayer = (side) => {
     const arm = map.arms?.[side]?.[ARM_POSES[arms][side]];
     if (arm) paint(c, arm.rows, [mx + arm.at[0], my + arm.at[1] + bob], character.palette);
@@ -74,8 +76,8 @@ function mirrored(src) {
   return out;
 }
 
-// Every frame as { anim: [canvas, ...] }: idle_ and walk_ for down, up, right and left (left
-// mirrors the 3/4 right view).
+// Every frame as { anim: [canvas, ...] }: idle_, walk_ and sit_ for down, up, right and left
+// (left mirrors the 3/4 right view).
 export function handmadeFrames(character) {
   const sets = { down: 'front', up: 'back', right: 'side' };
   const anims = {};
@@ -83,10 +85,12 @@ export function handmadeFrames(character) {
     if (!character[view]) continue;
     anims[`idle_${dir}`] = [drawHandmadeFrame(character, { view, ...WALK[view][0] })];
     anims[`walk_${dir}`] = WALK[view].map((f) => drawHandmadeFrame(character, { view, ...f }));
+    anims[`sit_${dir}`] = [drawHandmadeFrame(character, { view, sit: true })];
   }
   if (anims.idle_right) {
     anims.idle_left = anims.idle_right.map(mirrored);
     anims.walk_left = anims.walk_right.map(mirrored);
+    anims.sit_left = anims.sit_right.map(mirrored);
   }
   return anims;
 }

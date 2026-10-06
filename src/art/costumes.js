@@ -69,6 +69,13 @@ export const COSTUMES = {
     hair: { style: 'slick', color: '#c9a35a' },
     colors: { top: '#c9bfa8', trousers: '#a89f8a', shirt: '#fbf7ef', tie: '#7a2e2e', shoes: '#3a2a20' },
   },
+  laruja: {
+    // A very small man with a black beard (Chapter I).
+    build: 'slim', age: 'youth', skin: SKIN_SPANISH, top: 'suit', bottom: 'trousers',
+    hair: { style: 'slick', color: '#1b1615' },
+    accessories: ['mustache', 'beard'],
+    colors: { top: '#5a4636', trousers: '#3e342c', shirt: '#efe9dd', tie: '#7a2e2e', shoes: '#1f1712' },
+  },
   servant: {
     build: 'normal', skin: SKIN_MORENA, top: 'barong', bottom: 'trousers',
     hair: { style: 'short', color: '#1d1615' },

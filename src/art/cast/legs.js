@@ -66,3 +66,31 @@ export function legRows(view, pose) {
   for (let y = 0; y < KNEE_ROW; y++) for (let x = l.hip + 5; x <= r.hip; x++) grid[y][x] = 'T';
   return grid.map((row) => row.join(''));
 }
+
+// Seated legs (pure): the hips rest SEAT_DROP rows lower, on the chair. Front and back views show
+// the thighs end-on, so the legs are just shorter strips; the 3/4 side view lays each thigh
+// forward along the seat (toward the facing side, right) and drops the shin to the floor.
+export const SEAT_DROP = 5;
+const SEAT_ROWS = LEG_ROWS - SEAT_DROP; // hip to ankle, seated
+export function sitLegRows(view) {
+  const grid = Array.from({ length: SEAT_ROWS + 6 }, () => Array(WIDTH).fill('.'));
+  const put = (x, y, str) => {
+    for (let i = 0; i < str.length; i++) if (str[i] !== '.' && x + i >= 0 && x + i < WIDTH && y >= 0 && y < grid.length) grid[y][x + i] = str[i];
+  };
+  const legs = view === 'side' ? [{ hip: 13, knee: 19 }, { hip: 7, knee: 14 }] : [{ hip: 7, knee: 7 }, { hip: 14, knee: 14 }];
+  legs.forEach((leg, n) => {
+    const strip = view === 'side' && n === 0 ? STRIP.far : STRIP.near;
+    let top = 0;
+    if (view === 'side') {
+      // Thigh: the strip turned on its side, from the hip forward to the knee.
+      for (let x = leg.hip; x <= leg.knee; x++) for (let y = 0; y < strip.length; y++) put(x, y, strip[y]);
+      top = 3;
+    }
+    for (let y = top; y < SEAT_ROWS; y++) put(leg.knee, y, strip);
+    put(leg.knee, SEAT_ROWS, CUFF);
+    const boot = view === 'side' ? BOOTS.side : view === 'back' ? BOOTS.back : n === 0 ? BOOTS.frontL : BOOTS.frontR;
+    boot.forEach(([dx, b], i) => put(leg.knee + dx, SEAT_ROWS + 1 + i, b));
+  });
+  if (view !== 'side') for (let y = 0; y < 3; y++) for (let x = 12; x <= 14; x++) grid[y][x] = 'T';
+  return grid.map((row) => row.join(''));
+}
