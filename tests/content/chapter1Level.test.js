@@ -67,10 +67,21 @@ describe('Chapter 1 level', () => {
     expect(pos.z).toBeGreaterThan(-3); // the far end of the bridge is broken
   });
 
-  it('stands every spot, the spawn and every examinable on a floor', () => {
-    for (const [name, p] of Object.entries(world.spots)) expect(col.canStand(p.x, p.z, p.y), name).toBe(true);
+  it('stands every spot (seats aside), the spawn and every examinable on a floor', () => {
+    for (const [name, p] of Object.entries(world.spots)) if (!name.startsWith('seat_')) expect(col.canStand(p.x, p.z, p.y), name).toBe(true);
     expect(col.canStand(world.spawn.x, world.spawn.z, world.spawn.y)).toBe(true);
     for (const e of chapter1Level.examinables) expect(world.spots[e.spot], e.id).toBeDefined();
+  });
+
+  it('puts every seat on a chair at the table, with room to stand up behind it', () => {
+    const seats = Object.entries(world.spots).filter(([name]) => name.startsWith('seat_'));
+    expect(seats.map(([n]) => n).sort()).toEqual(['seat_damaso', 'seat_guevarra', 'seat_head', 'seat_ibarra', 'seat_laruja', 'seat_newcomer', 'seat_player', 'seat_tiburcio', 'seat_victorina']);
+    for (const [name, p] of seats) {
+      expect(col.blocked(p.x, p.z, p.y), name).toBe(true); // on the chair itself
+      expect(zoneAt(p), name).toBe('caida');
+      const room = [0.55, 0.8, 1.1].some((r) => [[0, -r], [0, r], [-r, 0]].some(([dx, dz]) => col.canStand(p.x + dx, p.z + dz, p.y)));
+      expect(room, name).toBe(true);
+    }
   });
 
   it('lists only real zones as indoor', () => {
