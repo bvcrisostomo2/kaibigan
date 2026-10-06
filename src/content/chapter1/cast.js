@@ -7,8 +7,10 @@ export const chapter1Cast = [
   { id: 'damaso', name: 'Padre Dámaso', costume: 'damaso', homeSpot: 'damaso_spot', dir: 'down', bio: 'A Franciscan friar, for twenty years the curate of the town of San Diego. He talks much and gestures more.' },
   { id: 'sibyla', name: 'Padre Sibyla', costume: 'sibyla', homeSpot: 'sibyla_spot', dir: 'down', bio: 'A young Dominican friar, the curate of Binondo and once a professor at the college of San Juan de Letran. He weighs every word.' },
   { id: 'guevarra', name: 'Teniente Guevarra', costume: 'guevarra', homeSpot: 'guevarra_spot', dir: 'up', bio: 'An elderly lieutenant of the Guardia Civil: tall, austere and curt of speech.' },
-  { id: 'victorina', name: 'Doña Victorina', costume: 'victorina', homeSpot: 'victorina_spot', dir: 'down', bio: 'Doña Victorina de los Reyes de Espadaña, a Filipina who dresses and talks as though she came from Madrid.' },
-  { id: 'tiburcio', name: 'Don Tiburcio de Espadaña', costume: 'tiburcio', homeSpot: 'tiburcio_spot', dir: 'down', bio: "Doña Victorina's husband, a quiet, lame Spaniard who keeps to her side." },
-  { id: 'newcomer', name: 'The newcomer', costume: 'newcomer', homeSpot: 'newcomer_spot', dir: 'left', bio: 'A young Spaniard lately arrived in the islands, already full of opinions about them.' },
+  { id: 'laruja', name: 'Señor Laruja', costume: 'laruja', homeSpot: 'laruja_spot', dir: 'right', bio: 'A very small man with a black beard and a nose too large for him, who knows the country, he says, and agrees with Padre Dámaso about it.' },
+  { id: 'newcomer', name: 'The newcomer', costume: 'newcomer', homeSpot: 'newcomer_spot', dir: 'left', bio: 'A young Spaniard four days in the islands, come at his own expense to study them, and writing everything down.' },
+  // The Espadañas arrive after the argument (Chapter I).
+  { id: 'victorina', name: 'Doña Victorina', costume: 'victorina', homeSpot: null, dir: 'down', bio: 'Doña Victorina de los Reyes de Espadaña, a Filipina who dresses and talks as though she came from Madrid.' },
+  { id: 'tiburcio', name: 'Don Tiburcio de Espadaña', costume: 'tiburcio', homeSpot: null, dir: 'down', bio: "Doña Victorina's husband, a quiet, lame Spaniard who keeps to her side." },
   { id: 'servant', name: 'A servant', costume: 'servant', homeSpot: 'servant_spot', dir: 'down', bio: '' },
 ];

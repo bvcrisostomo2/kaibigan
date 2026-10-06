@@ -3,8 +3,12 @@ import { chapter1Level } from './level.js';
 import { chapter1Cast } from './cast.js';
 import { chapter1Letter } from './letter.js';
 import { chapter1Notes } from './notes.js';
-import { chapter1Beats } from './beats.js';
+import { chapter1Beats, chapter1Cutscenes } from './beats.js';
 import { openingDialogues } from './dialogue/opening.js';
+import { salaDialogues } from './dialogue/sala.js';
+import { argumentDialogues } from './dialogue/argument.js';
+import { entranceDialogues } from './dialogue/entrance.js';
+import { dinnerDialogues } from './dialogue/dinner.js';
 import { GLOSSARY } from '../glossary.js';
 import { HINTS } from '../hints.js';
 
@@ -13,22 +17,31 @@ export const chapter1 = {
   startBeat: 'k1_arrive',
   titleCards: {
     1: { title: 'Kabanata I: Isang Handaan', subtitle: 'Chapter I: A Gathering' },
+    2: { title: 'Kabanata II: Si Crisostomo Ibarra', subtitle: 'Chapter II: Crisostomo Ibarra' },
+    3: { title: 'Kabanata III: Ang Hapunan', subtitle: 'Chapter III: The Dinner' },
   },
   locations: {
     calle: { name: 'Calle Anloague', detail: 'Binondo, Manila · 1880s' },
     casa: { name: 'Casa de Capitan Tiago', detail: 'Calle Anloague, Binondo · 1880s' },
   },
+  // Plan 4b-1's card: the evening so far. Plan 4b-2 replaces it with the chapter's full end card.
   endCard: {
-    recap: 'On the last of October, Capitan Tiago gave a dinner, and half of Binondo came to his house on Calle Anloague. You have arrived; Ibarra has not, yet. The rest of the evening is still being written.',
+    recap: 'At Capitan Tiago\'s dinner, Padre Dámaso held forth on the "indolent" indios until Teniente Guevarra told how a worthy man of San Diego was dug up from his grave. Then Ibarra came home in mourning, and Dámaso denied his father. At table the friar got the neck of the chicken, sneered at what Ibarra had learned in Europe, and Ibarra answered with courtesy and left. To be continued.',
     prompts: [
-      'Rizal describes the house before the people in it. What does the house tell you about Capitan Tiago?',
-      'Why might Capitan Tiago want Ibarra kept from the news about his father tonight?',
-      'What do you expect from a dinner where every guest wants to seem an old friend of the host?',
+      'Padre Dámaso and Señor Laruja call the indios indolent in a house that belongs to one. What does it tell you that they feel free to say it there?',
+      'Ibarra answers Dámaso\'s insult with courtesy, then leaves. Was that strength, or a retreat?',
+      'At dinner you chose how to answer Dámaso. What did your answer risk, and what did it protect?',
     ],
-    standings: [],
+    standings: [
+      { if: { flag: 'ch1_defied_damaso' }, text: 'Padre Dámaso will remember your name.' },
+      { if: { flag: 'ch1_tactful' }, text: 'Ibarra noticed you speak up for him.' },
+      { if: { flag: 'ch1_silent' }, text: 'Ibarra looked for you when Dámaso spoke. You looked at your plate.' },
+      { if: { flag: 'ch1_defended_indios' }, text: 'Teniente Guevarra counts you among the decent ones.' },
+      { if: { flag: 'ch1_sided_damaso' }, text: 'Padre Dámaso thinks you a sensible young person.' },
+    ],
   },
-  cutscenes: {},
-  dialogues: { ...openingDialogues },
+  cutscenes: chapter1Cutscenes,
+  dialogues: { ...openingDialogues, ...salaDialogues, ...argumentDialogues, ...entranceDialogues, ...dinnerDialogues },
   beats: chapter1Beats,
 };
 
