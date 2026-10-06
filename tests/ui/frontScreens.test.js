@@ -50,6 +50,22 @@ describe('runFrontScreens', () => {
     expect(result()).toEqual({ state: saved, beatId: 'dinner' });
   });
 
+  it('asks before a new game replaces an autosave', async () => {
+    const saved = { ...createState({ name: 'Ana' }), beat: 'dinner', checkpoint: 2 };
+    const { views, result } = start(memoryStorage({ [SAVE_KEY]: serialize(saved) }));
+    views.title.handlers.onSelect('newGame');
+    expect(views.title.visible).toBe(true);
+    expect(views.title.vm.confirm).toEqual({ text: 'Start a new game? Your saved game will be replaced.', yes: 'Start a new game', no: 'Keep my save' });
+    views.title.handlers.onCancel();
+    expect(views.title.vm.confirm).toBe(null);
+    views.title.handlers.onSelect('newGame');
+    views.title.handlers.onConfirm();
+    expect(views.letter.visible).toBe(true);
+    views.letter.handlers.onSign('Ben', 'Don');
+    await flush();
+    expect(result().state.name).toBe('Ben');
+  });
+
   it('discards a corrupt save with the spec message and no Continue', () => {
     const storage = memoryStorage({ [SAVE_KEY]: '{broken' });
     const { views } = start(storage);

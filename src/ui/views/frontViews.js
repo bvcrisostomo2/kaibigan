@@ -18,15 +18,21 @@ export function createTitleView(root) {
   const s = createScreen(root, 'ui-title');
   arrowFocus(s.el);
   return {
-    show(vm, { onSelect }) {
+    show(vm, { onSelect, onConfirm, onCancel }) {
       s.render(
         h('div', { class: 'ui-title-card' },
           h('h1', { class: 'ui-title-name' }, vm.title),
           h('p', { class: 'ui-title-sub' }, vm.subtitle),
           vm.notice && h('p', { class: 'ui-notice', role: 'status' }, vm.notice),
-          h('div', { class: 'ui-title-menu' },
-            vm.items.map((item) => h('button', { type: 'button', class: 'ui-button', onclick: () => onSelect(item.id) },
-              item.label, item.sub && h('small', {}, item.sub))))),
+          vm.confirm
+            ? h('div', { class: 'ui-paper ui-confirm', role: 'alertdialog', 'aria-label': vm.confirm.text },
+              h('p', {}, vm.confirm.text),
+              h('div', { class: 'ui-row' },
+                h('button', { type: 'button', class: 'ui-button', onclick: onCancel }, vm.confirm.no),
+                h('button', { type: 'button', class: 'ui-button ui-seal', onclick: onConfirm }, vm.confirm.yes)))
+            : h('div', { class: 'ui-title-menu' },
+              vm.items.map((item) => h('button', { type: 'button', class: 'ui-button', onclick: () => onSelect(item.id) },
+                item.label, item.sub && h('small', {}, item.sub))))),
       );
       s.el.querySelector('button')?.focus();
     },

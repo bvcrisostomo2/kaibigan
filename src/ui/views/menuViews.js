@@ -31,14 +31,14 @@ export function createMenuView(root) {
   return {
     show(vm, { onSelect, onAdjust, onClose }) {
       s.render(h('div', { class: 'ui-paper ui-page ui-menu-page', role: 'dialog', 'aria-label': vm.title },
-        h('button', { type: 'button', class: 'ui-close', 'aria-label': vm.rows[0].label, title: vm.rows[0].label, onclick: onClose }, '×'),
+        h('button', { type: 'button', class: 'ui-close', 'aria-label': vm.labels.close, title: vm.labels.close, onclick: onClose }, '×'),
         h('h2', {}, vm.title),
         h('ul', { class: 'ui-menu-rows' }, vm.rows.map((row, i) => h('li', { class: `ui-menu-row${i === vm.cursor ? ' is-on' : ''}` },
           h('button', { type: 'button', class: 'ui-menu-label', onclick: () => onSelect(i) }, row.label),
           row.value != null && h('span', { class: 'ui-menu-value' },
-            h('button', { type: 'button', class: 'ui-arrow', 'aria-label': '−', onclick: () => onAdjust(i, -1) }, '‹'),
+            h('button', { type: 'button', class: 'ui-arrow', 'aria-label': vm.labels.less, title: vm.labels.less, onclick: () => onAdjust(i, -1) }, '‹'),
             h('span', {}, row.value),
-            h('button', { type: 'button', class: 'ui-arrow', 'aria-label': '+', onclick: () => onAdjust(i, 1) }, '›')))))));
+            h('button', { type: 'button', class: 'ui-arrow', 'aria-label': vm.labels.more, title: vm.labels.more, onclick: () => onAdjust(i, 1) }, '›')))))));
     },
     hide: () => s.hide(),
   };

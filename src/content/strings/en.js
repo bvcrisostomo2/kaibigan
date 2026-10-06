@@ -9,6 +9,9 @@ export const EN = {
   'title.newGame': 'New Game',
   'title.enterCode': 'Enter Code',
   'title.saveDiscarded': "Couldn't load your save, starting fresh",
+  'title.confirmNew': 'Start a new game? Your saved game will be replaced.',
+  'title.confirmYes': 'Start a new game',
+  'title.confirmNo': 'Keep my save',
 
   'letter.nameLabel': 'Sign with your name',
   'letter.titleLabel': 'You are',
@@ -73,6 +76,9 @@ export const EN = {
   'menu.saveCode': 'Show save code',
   'menu.resetPosition': 'Reset position',
   'menu.quit': 'Quit to title',
+  'menu.less': 'Less',
+  'menu.more': 'More',
+  'menu.close': 'Close menu',
 
   'end.heading': 'End of Chapter {chapter}',
   'end.recap': 'What happened',
@@ -86,6 +92,7 @@ export const EN = {
   'touch.journal': 'Journal',
   'touch.menu': 'Menu',
 
+  'fatal.start': "Sorry, the game couldn't start. Try reloading the page.",
   'fatal.webgl': "Sorry, this browser can't run the game (WebGL is unavailable). Try a recent Chrome, Edge, Firefox or Safari.",
   'error.banner': 'Something went wrong: {message}',
 };

@@ -39,6 +39,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
   let kodigoLeft = 0;
   let cardPhase = null;
   let disposed = false;
+  let markersKey = null;
   const hud = { location: null, time: null, controlsVisible: true };
   const cards = createTitleCards();
   const toasts = createToasts();
@@ -176,7 +177,12 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
 
   // ---- Esc menu -------------------------------------------------------------------------------
   function renderMenu() {
-    views.menu.show({ title: t('menu.title'), rows: menuRows(current), cursor: menuCursor }, {
+    views.menu.show({
+      title: t('menu.title'),
+      rows: menuRows(current),
+      cursor: menuCursor,
+      labels: { less: t('menu.less'), more: t('menu.more'), close: t('menu.close') },
+    }, {
       onSelect(i) {
         menuCursor = i;
         activate();
@@ -280,6 +286,17 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
   // ---- Commands ---------------------------------------------------------------------------------
   function command(cmd) {
     if (disposed) return false;
+    // M and H work everywhere (spec §4.3), whatever screen is open.
+    if (cmd === 'mute') {
+      applySettings(adjustSetting(current, 'mute', 1));
+      if (menuCursor != null) renderMenu();
+      return true;
+    }
+    if (cmd === 'toggleControls') {
+      hud.controlsVisible = !hud.controlsVisible;
+      renderHud();
+      return true;
+    }
     if (ended) {
       if (cmd === 'interact') onAction('quit');
       return true;
@@ -316,13 +333,6 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
         return true;
       case 'menu':
         openMenu();
-        return true;
-      case 'toggleControls':
-        hud.controlsVisible = !hud.controlsVisible;
-        renderHud();
-        return true;
-      case 'mute':
-        applySettings(adjustSetting(current, 'mute', 1));
         return true;
       default:
         return false;
@@ -368,10 +378,15 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
       toasts.push(text);
       renderToasts();
     },
-    // [{ id, kind, x, y }] in screen pixels; hidden while a blocking screen is open.
+    // [{ id, kind, x, y }] in screen pixels; hidden while a blocking screen is open. Redrawn only
+    // when something changed.
     setMarkers(list) {
       if (disposed) return;
-      views.markers.render(blocking() ? [] : list);
+      const shown = blocking() ? [] : list;
+      const key = JSON.stringify(shown);
+      if (key === markersKey) return;
+      markersKey = key;
+      views.markers.render(shown);
     },
     get isBlocking() {
       return blocking();
@@ -381,6 +396,10 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     },
     get disposed() {
       return disposed;
+    },
+    // The current time of day ('dusk', …) as set by the chapter, or null before the first setTime.
+    get time() {
+      return hud.time;
     },
     // Quitting to the title: unsubscribe and hide everything. A dialogue still open is abandoned
     // (its promise never settles; the director it belongs to is discarded with it), and from now on
