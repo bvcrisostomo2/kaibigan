@@ -88,3 +88,16 @@ describe('buildWorld level checks', () => {
     expect(() => buildWorld({ floors, stairs: [stair] })).toThrow('overlaps the stair at x 4, z 4 at its top');
   });
 });
+
+describe('buildWorld cutaway', () => {
+  it('groups everything at or above the cutaway height so the boot can hide the upper storey', () => {
+    const withCut = buildWorld({ ...level, cutaway: { y: 3, zones: ['street'] } });
+    expect(withCut.cutaway).toEqual({ y: 3, zones: ['street'] });
+    // the upper floor, its chair and the roof; not the ground floor, walls, window or lantern
+    expect(withCut.upper.children).toHaveLength(3);
+    expect(withCut.group.children).toContain(withCut.upper);
+    const without = buildWorld(level);
+    expect(without.cutaway).toBe(null);
+    expect(without.upper.children).toHaveLength(0);
+  });
+});
