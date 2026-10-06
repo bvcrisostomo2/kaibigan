@@ -44,6 +44,12 @@ describe('animation choice', () => {
     expect(animCandidates({ mode: 'idle', dir: 'up', gesture: 'bow' })).toEqual(['gesture_bow', 'idle_down']);
   });
 
+  it('seated actors keep their seat through expressions, falling back to standing idle without seated art', () => {
+    expect(animCandidates({ mode: 'sit', dir: 'down', expression: 'angry' })).toEqual(['sit_down', 'sit_down', 'idle_down', 'idle_down', 'idle_down']);
+    expect(animCandidates({ mode: 'sit', dir: 'up_left' })).toEqual(['sit_up_left', 'sit_up', 'sit_left', 'idle_up_left', 'idle_up', 'idle_left', 'idle_down']);
+    expect(animFrame('sit', 99)).toBe(0);
+  });
+
   it('a sheet with only walk_down and idle_down still animates every state', () => {
     const anims = { walk_down: [{ col: 0, row: 0 }], idle_down: [{ col: 0, row: 1 }] };
     for (const dir of DIRECTIONS) {
@@ -123,6 +129,26 @@ describe('createActor', () => {
     expect(() => a.update(NaN, camera)).not.toThrow();
     expect(() => a.update(Infinity, camera)).not.toThrow();
     expect(() => a.update(1 / 60, camera)).not.toThrow();
+  });
+
+  it('sits facing a direction, stays seated while still, and stands to walk', () => {
+    registerSheet('test', { ...sheet(), anims: { ...sheet().anims, sit_left: [{ col: 3, row: 3 }] } });
+    const a = createActor({ id: 'a', costume: 'test', turnSeconds: TURN_SECONDS });
+    a.sit('left');
+    expect(a.seated).toBe(true);
+    expect(a.dir).toBe('left'); // snaps round, no turning
+    a.setMotion(0, 0);
+    a.emote('angry');
+    a.update(1, camera);
+    expect(a.seated).toBe(true);
+    expect(a.sprite.material.map.offset.x).toBe(0.75); // the sit_left cell
+    a.setMotion(1, 0);
+    expect(a.seated).toBe(false);
+    expect(a.mode).toBe('walk');
+    a.sit('down');
+    a.stand();
+    expect(a.mode).toBe('idle');
+    expect(() => a.sit('north')).toThrow("Bad direction 'north'");
   });
 
   it('emotes and rejects unknown emotes and directions', () => {
