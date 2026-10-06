@@ -361,3 +361,15 @@ describe('findCheckpoint', () => {
     expect(findCheckpoint([miniChapter], 9)).toBe(null);
   });
 });
+
+describe('interactionFor', () => {
+  it('names the dialogue Talk would open now, following the beat\'s conditions', async () => {
+    const { director, state } = createHeadlessGame({ chapter: miniChapter, state: createState({ name: 'Ana' }) });
+    expect(director.interactionFor('isabel')).toBe(null); // not started
+    await director.start();
+    expect(director.interactionFor('isabel')).toBe('isabel_chat');
+    expect(director.interactionFor('nobody')).toBe(null);
+    state.flags.push('seen:isabel_chat'); // conditions are read live
+    expect(director.interactionFor('isabel')).toBe('isabel_again');
+  });
+});

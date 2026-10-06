@@ -97,6 +97,13 @@ export function createStage({ world, actors, camera, lighting, audio, fader }) {
       }
     },
 
+    // Drop every pending walk and wait without finishing them (quitting to the title).
+    cancel() {
+      for (const id of moves.keys()) actor(id).setMotion(0, 0);
+      moves.clear();
+      waits.length = 0;
+    },
+
     // Advance walks and waits. Call every frame with the frame time.
     update(dt) {
       if (!Number.isFinite(dt)) dt = 0;

@@ -177,3 +177,18 @@ describe('createStage edge cases', () => {
     expect(actors.get('ibarra').position.x).toBeCloseTo(5, 0);
   });
 });
+
+describe('stage.cancel', () => {
+  it('drops pending walks and waits without finishing them (quitting to the title)', async () => {
+    const { stage, actors } = setup();
+    let settled = false;
+    stage.run(['moveTo', 'ibarra', 'door']).then(() => (settled = true));
+    stage.run(['wait', 0.5]).then(() => (settled = true));
+    stage.cancel();
+    expect(stage.busy).toBe(false);
+    run(stage, 2);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(actors.get('ibarra').position.x).toBe(0);
+  });
+});
