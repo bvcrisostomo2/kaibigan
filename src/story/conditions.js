@@ -5,7 +5,7 @@ import { hasFlag } from './state.js';
 export const CONDITION_KEYS = [
   'flag', 'notFlag', 'flagsAll', 'flagsAny',
   'tiwalaAtLeast', 'tiwalaBelow', 'hinalaAtLeast', 'hinalaBelow',
-  'affinityAtLeast', 'all', 'any',
+  'affinityAtLeast', 'countAtLeast', 'all', 'any',
 ];
 
 export function evaluate(cond, state) {
@@ -27,6 +27,8 @@ function test(key, v, s) {
     case 'hinalaAtLeast': return s.hinala >= v;
     case 'hinalaBelow': return s.hinala < v;
     case 'affinityAtLeast': return Object.entries(v).every(([id, n]) => (s.affinity[id] ?? 0) >= n);
+    // At least n of the listed flags are set, e.g. 'talked to 3 guests' over their seen: flags.
+    case 'countAtLeast': return v.flags.filter((f) => hasFlag(s, f)).length >= v.n;
     case 'all': return v.every((c) => evaluate(c, s));
     case 'any': return v.some((c) => evaluate(c, s));
     default: throw new Error(`Unknown condition key: ${key}`);
@@ -39,6 +41,7 @@ export function flagsReadBy(cond, out = new Set()) {
   for (const [key, v] of Object.entries(cond)) {
     if (key === 'flag' || key === 'notFlag') out.add(v);
     else if (key === 'flagsAll' || key === 'flagsAny') v.forEach((f) => out.add(f));
+    else if (key === 'countAtLeast') v.flags.forEach((f) => out.add(f));
     else if (key === 'all' || key === 'any') v.forEach((c) => flagsReadBy(c, out));
   }
   return out;

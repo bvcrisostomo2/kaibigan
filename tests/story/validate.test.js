@@ -69,6 +69,19 @@ describe('validateContent', () => {
     expect(errorsFor((ch) => { ch.titleCards = { 1: { title: 'I', subtitle: 'One' } }; })).toContain("beat 'dinner'.actions[0]: title card '2' not found");
   });
 
+  it('checks seating actions and counted conditions', () => {
+    expect(errorsFor((ch) => { ch.beats[1].actions.push(['sit', 'damaso', 'table', 'down'], ['stand', 'damaso']); })).toEqual([]);
+    expect(errorsFor((ch) => { ch.beats[1].actions.push(['sit', 'ghost', 'table', 'down']); })).toContain("beat 'dinner'.actions[3]: actor 'ghost' not found");
+    expect(errorsFor((ch) => { ch.beats[1].actions.push(['sit', 'damaso', 'roof', 'down']); })).toContain("beat 'dinner'.actions[3]: spot 'roof' not found");
+    expect(errorsFor((ch) => { ch.beats[1].actions.push(['sit', 'damaso', 'table', 'sideways']); })).toContain("beat 'dinner'.actions[3]: sit needs a facing, not 'sideways'");
+    expect(errorsFor((ch) => { ch.beats[1].actions.push(['stand', 'ghost']); })).toContain("beat 'dinner'.actions[3]: actor 'ghost' not found");
+    expect(errorsFor((ch) => { ch.beats[1].trigger = { countAtLeast: { n: 1, flags: ['seen:greet'] } }; })).toEqual([]);
+    const counted = base();
+    counted.chapters[0].beats[1].trigger = { countAtLeast: { n: 1, flags: ['seen:nope'] } };
+    expect(validateContent(counted).warnings).toContain("beat 'dinner'.trigger: flag 'seen:nope' is never set (fine only if a later chapter sets it)");
+    expect(errorsFor((ch) => { ch.beats[1].trigger = { countAtLeast: { n: 2, flags: ['seen:greet'] } }; })).toContain("beat 'dinner'.trigger: countAtLeast needs { n, flags } with 1 ≤ n ≤ flags.length");
+  });
+
   it('requires a default ending', () => {
     const { errors } = validateContent(base({ endings: [{ id: 'x', if: { flag: 'a' } }] }));
     expect(errors).toContain("endings: the last ending must have no 'if' (default)");

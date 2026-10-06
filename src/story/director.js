@@ -37,7 +37,7 @@ import { createDialogue } from './dialogue.js';
 export const DIRECTOR_ACTIONS = ['dialogue', 'branch', 'setBeat', 'effects', 'endChapter'];
 export const HOST_ACTIONS = [
   'titleCard', 'moveTo', 'face', 'teleport', 'emote', 'fadeOut', 'fadeIn',
-  'setTime', 'wait', 'cutscene', 'camera', 'show', 'hide', 'sound',
+  'setTime', 'wait', 'cutscene', 'camera', 'show', 'hide', 'sound', 'sit', 'stand',
 ];
 export const TRIGGER_KEYS = ['enterZone', 'interact', 'afterSec', 'or'];
 
