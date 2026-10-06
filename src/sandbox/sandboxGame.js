@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import '../ui/ui.css';
 import { createRenderer, WebGLUnavailableError } from '../engine/renderer.js';
-import { createFollowCamera } from '../engine/camera.js';
+import { createFollowCamera, CAMERA_DEFAULTS } from '../engine/camera.js';
 import { createInput, bindKeyboard } from '../engine/input.js';
 import { buildWorld, animateWorld } from '../engine/world.js';
 import { createActor, dirFromVector, WALK_SPEED, RUN_SPEED, TURN_SECONDS } from '../engine/actors.js';
@@ -27,7 +27,7 @@ import { createDomViews } from '../ui/views/index.js';
 import { createTouchView, createBannerView } from '../ui/views/touchView.js';
 import { runFrontScreens } from '../ui/frontScreens.js';
 import { createGameUi } from '../ui/gameUi.js';
-import { composeHost } from '../ui/host.js';
+import { composeHost, routePresses } from '../ui/host.js';
 import { loadSettings, saveSettings } from '../ui/settings.js';
 import { markersFor } from '../ui/markers.js';
 import { t } from '../ui/strings.js';
@@ -122,7 +122,7 @@ export async function startSandboxGame(container) {
   window.addEventListener('keydown', unlockAudio, { once: true });
 
   // ---- Game sessions --------------------------------------------------------------------------
-  let game = null; // { ctx, codes, ui, director, zone }
+  let game = null; // { ctx, codes, ui, director, zone, offSave }
 
   function reportError(err) {
     console.error('[game]', err);
@@ -140,15 +140,24 @@ export async function startSandboxGame(container) {
     }
   }
 
+  // Back to the title's dusk street: nothing from the last session carries over.
   function resetScene() {
+    stage.cancel();
+    lighting.setTime('dusk');
     player.object.position.copy(world.spawn);
+    player.object.visible = true;
     player.setMotion(0, 0);
+    player.emote(null);
     for (const n of npcs) {
       n.actor.object.position.copy(n.home);
+      n.actor.object.visible = true;
+      n.actor.setMotion(0, 0);
       n.actor.face(n.dir);
       n.actor.emote(null);
     }
+    cam.setDistance(CAMERA_DEFAULTS.distance);
     cam.follow(player.object, { snap: true });
+    fader.fadeIn(0);
   }
 
   function onAction(action) {
@@ -165,7 +174,7 @@ export async function startSandboxGame(container) {
     const bus = createBus({ onError: reportError });
     const ctx = { state, bus, hints: demoHints };
     const codes = trackCheckpointCodes(ctx); // before the UI, so the Kodigo panel gets the fresh code
-    bus.on('beat:enter', () => storage && saveGame(storage, state));
+    const offSave = bus.on('beat:enter', () => storage && saveGame(storage, state));
     const ui = createGameUi({
       views, ctx, codes, settings, content: CONTENT,
       emote: (id, face) => actors.get(id)?.emote(face),
@@ -175,7 +184,7 @@ export async function startSandboxGame(container) {
     const director = createDirector({ chapter: demoChapter, ctx, host: composeHost({ stage, ui }) });
     dressPlayer(state.title === 'Doña' ? 'player_dona' : 'player_don');
     input.clear();
-    game = { ctx, codes, ui, director, zone: null };
+    game = { ctx, codes, ui, director, zone: null, offSave };
     fader.fadeOut(0);
     fader.fadeIn(1);
     director.start(beatId).catch(reportError);
@@ -183,8 +192,10 @@ export async function startSandboxGame(container) {
 
   function endGame() {
     if (!game) return;
-    game.ui.dispose();
+    game.ui.dispose(); // from now on the old director's host never settles (host.js)
     game.codes.stop();
+    game.offSave();
+    stage.cancel();
     game = null;
   }
 
@@ -235,16 +246,12 @@ export async function startSandboxGame(container) {
     last = now;
     time += dt;
 
-    const presses = input.consumePressed();
-    if (game) {
-      for (const p of presses) {
-        if (game.ui.command(p)) continue;
-        if (p === 'interact' && !game.director.busy) {
-          const target = nearestTalkable();
-          if (target) game.director.interact(target).catch(reportError);
-        }
-      }
-    }
+    // A press can quit to the title, so routePresses stops as soon as the session ends.
+    routePresses(input.consumePressed(), () => game, () => {
+      if (game.director.busy) return;
+      const target = nearestTalkable();
+      if (target) game.director.interact(target).catch(reportError);
+    });
 
     const playing = game != null && !game.ui.isBlocking;
     const m = playing ? input.move() : { x: 0, z: 0, run: false };

@@ -5,7 +5,7 @@ import { createDirector } from '../../src/story/director.js';
 import { trackCheckpointCodes, decodeCode } from '../../src/story/saveCode.js';
 import { plainText } from '../../src/story/text.js';
 import { createGameUi, KODIGO_SECONDS } from '../../src/ui/gameUi.js';
-import { composeHost } from '../../src/ui/host.js';
+import { composeHost, routePresses } from '../../src/ui/host.js';
 import { defaultSettings, MENU_ITEMS } from '../../src/ui/settings.js';
 import { miniChapter, miniCast, miniGlossary, miniNotes, miniHints } from '../fixtures/miniChapter.js';
 import { fakeViews, flush } from '../support/fakeViews.js';
@@ -235,6 +235,49 @@ describe('createGameUi: screens and commands', () => {
     expect(() => ui.update(-1)).not.toThrow();
   });
 
+  it('a click on the dialogue box finishes the text but never picks a choice', () => {
+    const { views, ui } = setup();
+    const text = (s) => [{ kind: 'text', text: s }];
+    let chosen = null;
+    const line = { id: 'c', who: 'player', face: null, segments: text('Well?'), choices: [{ index: 0, segments: text('Yes.') }, { index: 1, segments: text('No.') }] };
+    const runner = { id: 'r', done: false, current: () => (chosen == null ? line : null), choose(i) { chosen = i; this.done = true; }, advance() {} };
+    ui.runDialogue(runner);
+    views.dialogue.handlers.onConfirm(); // finishes typing
+    expect(views.dialogue.vm.choices).toHaveLength(2);
+    views.dialogue.handlers.onConfirm();
+    views.dialogue.handlers.onConfirm();
+    expect(chosen).toBe(null);
+    views.dialogue.handlers.onChoice(1);
+    expect(chosen).toBe(1);
+  });
+
+  it('after quitting mid-cutscene the old chapter never puts up another screen', async () => {
+    const { views, ui, director } = setup();
+    director.start();
+    await flush();
+    expect(views.titleCard.visible).toBe(true);
+    ui.dispose();
+    ui.update(5);
+    await flush();
+    expect(views.dialogue.shows).toBe(0);
+    expect(ui.command('interact')).toBe(false);
+    expect(ui.command('menu')).toBe(false);
+    let settled = false;
+    ui.run(['titleCard', 1]).then(() => (settled = true), () => (settled = true));
+    ui.runDialogue({ id: 'x', done: false, current: () => ({ id: 'a', who: 'isabel', segments: [], choices: null }) }).then(() => (settled = true), () => (settled = true));
+    await flush();
+    expect(settled).toBe(false);
+    expect(views.dialogue.shows).toBe(0);
+    expect(ui.disposed).toBe(true);
+  });
+
+  it('disposing clears the HUD', () => {
+    const { views, ui } = setup();
+    ui.setTime('night');
+    ui.dispose();
+    expect(views.hud.vm).toEqual({ place: '', detail: '', time: '', controls: null });
+  });
+
   it('disposes: hides every screen and stops listening to the story', async () => {
     const { views, ui, bus } = setup();
     ui.command('journal');
@@ -255,5 +298,34 @@ describe('composeHost', () => {
     await host.run(['setTime', 'night', 2]);
     expect(ui.setTime).toHaveBeenCalledWith('night');
     await expect(host.runDialogue('runner')).resolves.toBe('dialogue');
+  });
+});
+
+describe('host gate after quitting', () => {
+  it('a stage action that finishes after the UI is disposed never continues the old chapter', async () => {
+    let finish;
+    const stage = { handles: () => true, run: () => new Promise((resolve) => (finish = resolve)) };
+    const ui = { disposed: false, run: vi.fn(), runDialogue: vi.fn(), setTime() {} };
+    const host = composeHost({ stage, ui });
+    let continued = false;
+    host.run(['wait', 1]).then(() => (continued = true), () => (continued = true));
+    ui.disposed = true;
+    finish();
+    await flush();
+    expect(continued).toBe(false);
+    host.run(['moveTo', 'a', 'b']).then(() => (continued = true));
+    host.runDialogue({}).then(() => (continued = true));
+    await flush();
+    expect(continued).toBe(false);
+    expect(ui.runDialogue).not.toHaveBeenCalled();
+  });
+});
+
+describe('routePresses', () => {
+  it('stops when a press ends the session and sends an unused Talk to the game', () => {
+    let session = { ui: { command: (p) => { if (p === 'menu') { session = null; return true; } return p === 'journal'; } } };
+    const talk = vi.fn();
+    expect(() => routePresses(['interact', 'journal', 'menu', 'nav_down', 'interact'], () => session, talk)).not.toThrow();
+    expect(talk).toHaveBeenCalledTimes(1);
   });
 });

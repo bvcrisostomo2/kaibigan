@@ -25,6 +25,7 @@ import { wrapIndex } from './cursor.js';
 import { t } from './strings.js';
 
 export const KODIGO_SECONDS = 20;
+const never = () => new Promise(() => {});
 
 export function createGameUi({ views, ctx, content, codes, settings, emote = () => {}, onSettings = () => {}, onAction = () => {} }) {
   const { state, bus } = ctx;
@@ -37,6 +38,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
   let ended = false;
   let kodigoLeft = 0;
   let cardPhase = null;
+  let disposed = false;
   const hud = { location: null, time: null, controlsVisible: true };
   const cards = createTitleCards();
   const toasts = createToasts();
@@ -50,7 +52,10 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
 
   // ---- Dialogue -------------------------------------------------------------------------------
   const dialogueHandlers = {
-    onConfirm: () => command('interact'),
+    // A click on the box finishes or advances text; only the choice buttons pick a choice.
+    onConfirm: () => {
+      if (!dialogue?.model.view()?.choices) command('interact');
+    },
     onChoice: (index) => answer(dialogue?.model.pick(index)),
     onTerm: (id) => openGlossary(id),
   };
@@ -93,6 +98,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
   }
 
   function runDialogue(runner) {
+    if (disposed) return never();
     if (dialogue) return Promise.reject(new Error('A dialogue is already open'));
     return new Promise((resolve, reject) => {
       dialogue = { runner, model: createDialogueBox({ speed: current.textSpeed }), resolve, reject, emoted: new Set() };
@@ -273,6 +279,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
 
   // ---- Commands ---------------------------------------------------------------------------------
   function command(cmd) {
+    if (disposed) return false;
     if (ended) {
       if (cmd === 'interact') onAction('quit');
       return true;
@@ -327,6 +334,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
   return {
     // Host actions the UI performs ('titleCard'); anything else is an error.
     run(action) {
+      if (disposed) return never();
       const [type, arg] = action;
       if (type !== 'titleCard') return Promise.reject(new Error(`UI cannot run '${type}'`));
       const card = chapter.titleCards?.[arg];
@@ -338,6 +346,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     runDialogue,
     command,
     update(dt) {
+      if (disposed) return;
       if (!Number.isFinite(dt) || dt < 0) dt = 0;
       if (dialogue?.model.update(dt)) renderDialogue();
       cards.update(dt);
@@ -349,16 +358,19 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
       }
     },
     setTime(time) {
+      if (disposed) return;
       hud.time = time;
       renderHud();
     },
     // A brief notice from the game, such as the low frame-rate suggestion (spec §7).
     notify(text) {
+      if (disposed) return;
       toasts.push(text);
       renderToasts();
     },
     // [{ id, kind, x, y }] in screen pixels; hidden while a blocking screen is open.
     setMarkers(list) {
+      if (disposed) return;
       views.markers.render(blocking() ? [] : list);
     },
     get isBlocking() {
@@ -367,9 +379,14 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     get settings() {
       return current;
     },
+    get disposed() {
+      return disposed;
+    },
     // Quitting to the title: unsubscribe and hide everything. A dialogue still open is abandoned
-    // (its promise never settles; the director it belongs to is discarded with it).
+    // (its promise never settles; the director it belongs to is discarded with it), and from now on
+    // run() and runDialogue() never settle and command() does nothing.
     dispose() {
+      disposed = true;
       for (const off of offs) off();
       cards.clear();
       if (dialogue) {
@@ -379,6 +396,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
       for (const v of [views.glossary, views.titleCard, views.kodigo, views.journal, views.menu, views.chapterEnd]) v.hide();
       views.markers.render([]);
       views.toasts.render([]);
+      views.hud.render(hudView({ location: null, time: null, controlsVisible: false }));
     },
   };
 }
