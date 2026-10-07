@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 import {
   dirFromVector, sheetDir, animCandidates, pickAnim, cellUV, animFrame, turnToward, createActor,
-  DIRECTIONS, WALK_FPS, IDLE_SECONDS, TURN_SECONDS,
+  DIRECTIONS, WALK_FPS, IDLE_SECONDS, TURN_SECONDS, ACT_FPS,
 } from '../../src/engine/actors.js';
 import { registerSheet, clearRegisteredSheets } from '../../src/art/threeTextures.js';
 
@@ -48,6 +48,14 @@ describe('animation choice', () => {
     expect(animCandidates({ mode: 'sit', dir: 'down', expression: 'angry' })).toEqual(['sit_down', 'sit_down', 'idle_down', 'idle_down', 'idle_down']);
     expect(animCandidates({ mode: 'sit', dir: 'up_left' })).toEqual(['sit_up_left', 'sit_up', 'sit_left', 'idle_up_left', 'idle_up', 'idle_left', 'idle_down']);
     expect(animFrame('sit', 99)).toBe(0);
+  });
+
+  it('plays an activity while standing, front or side; facing away or without the art it stands idle', () => {
+    expect(animCandidates({ mode: 'idle', dir: 'left', activity: 'sweep' })).toEqual(['act_sweep_left', 'act_sweep_left', 'act_sweep_down', 'idle_left', 'idle_left', 'idle_down']);
+    expect(animCandidates({ mode: 'idle', dir: 'up', activity: 'stir' })).toEqual(['act_stir_up', 'act_stir_up', 'idle_up', 'idle_up', 'idle_down']);
+    expect(animCandidates({ mode: 'walk', dir: 'down', activity: 'sweep' })[0]).toBe('walk_down'); // walking, no activity
+    expect(animCandidates({ mode: 'sit', dir: 'down', activity: 'fan' })[0]).toBe('sit_down'); // seated wins
+    expect(animFrame('act', 1)).toBe(ACT_FPS);
   });
 
   it('a sheet with only walk_down and idle_down still animates every state', () => {
@@ -149,6 +157,22 @@ describe('createActor', () => {
     a.stand();
     expect(a.mode).toBe('idle');
     expect(() => a.sit('north')).toThrow("Bad direction 'north'");
+  });
+
+  it('loops an activity until it moves or is told to stop', () => {
+    registerSheet('test', { ...sheet(), anims: { ...sheet().anims, act_sweep_down: [{ col: 2, row: 0 }, { col: 3, row: 0 }] } });
+    const a = createActor({ id: 'a', costume: 'test' });
+    a.act('sweep');
+    expect(a.activity).toBe('sweep');
+    a.update(0, camera);
+    expect([0.5, 0.75]).toContain(a.sprite.material.map.offset.x); // one of the two sweep cells
+    a.setMotion(0, 0);
+    expect(a.activity).toBe('sweep'); // standing still keeps it
+    a.setMotion(1, 0);
+    expect(a.activity).toBe(null); // walking stops it
+    a.act('sweep');
+    a.act(null);
+    expect(a.activity).toBe(null);
   });
 
   it('emotes and rejects unknown emotes and directions', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { noteFreq, pluck, renderMusic, renderRiver, renderCrickets, renderChatter, createAudio, LAYERS, SAMPLE_RATE, BPM, KUNDIMAN_BARS } from '../../src/engine/audio.js';
+import { noteFreq, pluck, renderMusic, renderRiver, renderCrickets, renderChatter, renderKitchen, renderStrings, createAudio, LAYERS, SFX, SAMPLE_RATE, BPM, KUNDIMAN_BARS } from '../../src/engine/audio.js';
 import { wrap, createParticles } from '../../src/engine/particles.js';
 
 const rms = (a) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length);
@@ -40,11 +40,58 @@ describe('synthesized audio', () => {
     const audio = createAudio({ AudioContextClass: undefined });
     audio.unlock();
     expect(audio.unlocked).toBe(false);
-    expect(LAYERS).toEqual(['chatter', 'crickets', 'river', 'music']);
+    expect(LAYERS).toEqual(['chatter', 'crickets', 'river', 'music', 'kitchen', 'strings']);
+    expect(() => audio.play('plate')).not.toThrow(); // silently, before unlock
+    expect(() => audio.play('thunder')).toThrow("Unknown sound effect 'thunder'");
     expect(() => audio.setLayer('music', 0.5)).not.toThrow();
     expect(() => audio.setLayer('thunder', 1)).toThrow("Unknown audio layer 'thunder'");
     expect(audio.toggleMute()).toBe(true);
     expect(audio.muted).toBe(true);
+  });
+});
+
+describe('sound effects and the new layers', () => {
+  const peak = (buf) => buf.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+
+  it.each(Object.keys(SFX))('renders the %s effect: short, audible, never clipping', (name) => {
+    const buf = SFX[name](SAMPLE_RATE);
+    expect(buf.length).toBeGreaterThan(0.2 * SAMPLE_RATE);
+    expect(buf.length).toBeLessThanOrEqual(1.2 * SAMPLE_RATE);
+    expect(buf.every(Number.isFinite)).toBe(true);
+    expect(peak(buf)).toBeGreaterThan(0.4);
+    expect(peak(buf)).toBeLessThanOrEqual(0.8001);
+  });
+
+  it('has the effects the house needs', () => {
+    expect(Object.keys(SFX).sort()).toEqual(['cutlery', 'door', 'glasses', 'lap', 'laugh', 'plate', 'pole', 'stairs']);
+  });
+
+  it('renders the kitchen and the orchestra as soft loops, the orchestra in step with the music', () => {
+    const kitchen = renderKitchen(2);
+    expect(kitchen.length).toBe(2 * SAMPLE_RATE);
+    expect(peak(kitchen)).toBeCloseTo(0.4, 5);
+    const strings = renderStrings();
+    expect(strings.length).toBe(renderMusic().length);
+    expect(peak(strings)).toBeCloseTo(0.45, 5);
+  });
+
+  it('plays an effect once through the master volume after unlock', () => {
+    const made = [];
+    class FakeContext {
+      constructor() { this.currentTime = 0; this.destination = {}; }
+      createGain() { const g = { gain: { value: 1, setTargetAtTime() {} }, connect: (n) => n }; made.push(['gain', g]); return g; }
+      createBuffer(ch, len) { return { len, copyToChannel() {} }; }
+      createBufferSource() { const src = { connect: (n) => n, start: () => made.push(['start', src]) }; return src; }
+    }
+    const audio = createAudio({ AudioContextClass: FakeContext });
+    audio.unlock();
+    const before = made.filter(([k]) => k === 'start').length;
+    audio.play('glasses', 0.5);
+    audio.play('glasses', 2);
+    const starts = made.filter(([k]) => k === 'start');
+    expect(starts.length - before).toBe(2);
+    expect(starts.at(-1)[1].buffer).toBe(starts.at(-2)[1].buffer); // rendered once, reused
+    expect(made.filter(([k]) => k === 'gain').at(-1)[1].gain.value).toBe(1); // clamped
   });
 });
 

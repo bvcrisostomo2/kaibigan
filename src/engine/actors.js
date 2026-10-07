@@ -11,6 +11,7 @@ export const IDLE_SECONDS = 0.8;
 export const WALK_SPEED = 2.2; // units per second
 export const RUN_SPEED = 3.8;
 export const TURN_SECONDS = 0.08; // per 45° step, for actors that turn gradually
+export const ACT_FPS = 4; // activities (sweeping, strumming, ...) loop slowly
 
 // 8-way facing. The camera looks north (−z), so +z is 'down'.
 export const DIRECTIONS = ['right', 'down_right', 'down', 'down_left', 'left', 'up_left', 'up', 'up_right'];
@@ -32,12 +33,15 @@ export function sheetDir(dir) {
 // Animation names to try, best first, for a state (pure). Sheets without diagonal or run art
 // fall back to what they have: walk diagonals use run diagonals, then the nearest view — the
 // back view for up-diagonals (side views in these sheets are front three-quarter), else the side.
-export function animCandidates({ mode, dir, expression = null, gesture = null }) {
+export function animCandidates({ mode, dir, expression = null, gesture = null, activity = null }) {
   const side = sheetDir(dir);
   const away = dir.startsWith('up_');
   // Seated actors stay seated: expressions show on the portrait only. Sheets without seated art
   // (e.g. a local set) fall back to standing idle.
   if (mode === 'sit') return [`sit_${dir}`, ...(away ? ['sit_up'] : []), `sit_${side}`, `idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
+  // An activity (an extra sweeping, playing, cooking) is drawn front and side; facing away it
+  // falls back to standing idle that way.
+  if (activity && mode === 'idle') return [`act_${activity}_${dir}`, `act_${activity}_${side}`, ...(dir === 'up' || away ? [] : [`act_${activity}_down`]), `idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
   if (gesture) return [`gesture_${gesture}`, 'idle_down'];
   if (expression) return [`expression_${expression}`, 'idle_down'];
   if (mode === 'idle') return [`idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
@@ -68,6 +72,7 @@ export function cellUV({ col, row }, cols, rows) {
 // Pure animation clock: which frame index to show after `time` seconds in a mode.
 export function animFrame(mode, time) {
   if (mode === 'sit') return 0;
+  if (mode === 'act') return Math.floor(time * ACT_FPS);
   if (mode === 'walk') return Math.floor(time * WALK_FPS);
   if (mode === 'run') return Math.floor(time * RUN_FPS);
   return Math.floor(time / IDLE_SECONDS);
@@ -113,7 +118,8 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
   object.position.copy(position);
   object.userData.actorId = id;
 
-  const state = { dir, target: dir, turnClock: 0, mode: 'idle', time: 0, expression: null, gesture: null };
+  // Activities start at a random point in their loop so a crowd doesn't move in step.
+  const state = { dir, target: dir, turnClock: 0, mode: 'idle', time: 0, expression: null, gesture: null, activity: null, actTime: Math.random() * 4 };
   function turnTo(d) {
     state.target = d;
     if (!turnSeconds) state.dir = d;
@@ -121,7 +127,8 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
 
   function applyCell() {
     const frames = pickAnim(sheet.anims, animCandidates(state));
-    const i = animFrame(state.mode, state.time);
+    const acting = state.activity && state.mode === 'idle';
+    const i = acting ? animFrame('act', state.actTime) : animFrame(state.mode, state.time);
     const cell = frames[Number.isFinite(i) ? ((i % frames.length) + frames.length) % frames.length : 0];
     const uv = cellUV(cell, sheet.cols, sheet.rows);
     tex.offset.set(uv.offsetX, uv.offsetY);
@@ -144,6 +151,7 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
     setMotion(dx, dz, run = false) {
       const moving = Math.abs(dx) > 1e-6 || Math.abs(dz) > 1e-6;
       if (!moving && state.mode === 'sit') return;
+      if (moving) state.activity = null;
       const mode = moving ? (run ? 'run' : 'walk') : 'idle';
       if (mode !== state.mode) state.time = 0;
       state.mode = mode;
@@ -158,6 +166,11 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
       turnTo(dir);
       state.expression = null;
       state.gesture = null;
+    },
+    get activity() { return state.activity; },
+    // Loop an activity's animation ('sweep', 'strum', ...) while standing still; null stops it.
+    act(name) {
+      state.activity = name ?? null;
     },
     // Sit facing dir (snapping round, no turn), until stand() or the next movement.
     sit(dir) {
@@ -181,7 +194,10 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
       else throw new Error(`Unknown expression or gesture '${name}'`);
     },
     update(dt, camera) {
-      if (Number.isFinite(dt)) state.time += dt;
+      if (Number.isFinite(dt)) {
+        state.time += dt;
+        state.actTime += dt;
+      }
       if (state.dir !== state.target) {
         state.turnClock += Number.isFinite(dt) ? dt : 0;
         while (state.dir !== state.target && state.turnClock >= turnSeconds) {

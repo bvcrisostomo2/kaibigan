@@ -15,10 +15,11 @@
 //   wait     seconds
 //   fadeOut / fadeIn  seconds?
 //   sound    layer, level                  ambience/music layer level 0–1
+//   sfx      name, level?                  a one-shot sound effect (engine/audio.js SFX)
 import { dirFromVector, DIRECTIONS, WALK_SPEED } from './actors.js';
 import { STEP } from './collision.js';
 
-export const STAGE_ACTIONS = ['moveTo', 'teleport', 'face', 'emote', 'show', 'hide', 'sit', 'stand', 'setTime', 'camera', 'wait', 'fadeOut', 'fadeIn', 'sound'];
+export const STAGE_ACTIONS = ['moveTo', 'teleport', 'face', 'emote', 'show', 'hide', 'sit', 'stand', 'setTime', 'camera', 'wait', 'fadeOut', 'fadeIn', 'sound', 'sfx'];
 const ARRIVE = 0.12;
 const STUCK_SECONDS = 0.6;
 // Unit steps for each facing (+z is down), used to step back from a chair when standing.
@@ -127,6 +128,9 @@ export function createStage({ world, actors, camera, lighting, audio, fader }) {
           return fader.fadeIn(a1);
         case 'sound':
           audio.setLayer(a1, a2);
+          return Promise.resolve();
+        case 'sfx':
+          audio.play(a1, a2 ?? 1);
           return Promise.resolve();
         default:
           return Promise.reject(new Error(`Stage cannot run '${type}'`));

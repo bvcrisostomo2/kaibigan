@@ -154,7 +154,6 @@ export async function startSandbox(container) {
     animateWorld(world, time);
     player.update(dt, cam.camera);
     for (const n of npcs) n.actor.update(dt, cam.camera);
-    cam.updateOccluders(world.occluders, player.position, dt);
 
     view.render(scene, cam.camera);
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { cameraOffset, clampDistance, createFollowCamera, CAMERA_DEFAULTS } from '../../src/engine/camera.js';
+import { cameraOffset, clampDistance, clampFocus, halfViewWidth, createFollowCamera, CAMERA_DEFAULTS, CAMERA_PRESETS } from '../../src/engine/camera.js';
 
 describe('camera math', () => {
   it('places the camera south of and above the target at the pitch', () => {
@@ -14,6 +14,29 @@ describe('camera math', () => {
     expect(clampDistance(1)).toBe(CAMERA_DEFAULTS.minDistance);
     expect(clampDistance(999)).toBe(CAMERA_DEFAULTS.maxDistance);
     expect(clampDistance(12)).toBe(12);
+  });
+
+  it('keeps the focus inside a map so the view never shows past its edges', () => {
+    const bounds = { x: 0, z: 0, w: 40, d: 10 };
+    expect(clampFocus({ x: 20, z: 5 }, bounds, 6)).toEqual({ x: 20, z: 5 });
+    expect(clampFocus({ x: 1, z: -3 }, bounds, 6)).toEqual({ x: 6, z: 0 }); // west edge, north edge
+    expect(clampFocus({ x: 39, z: 14 }, bounds, 6)).toEqual({ x: 34, z: 10 });
+    expect(clampFocus({ x: 3, z: 5 }, { x: 0, z: 0, w: 8, d: 6 }, 6)).toEqual({ x: 4, z: 5 }); // narrower than the view: centred
+    expect(clampFocus({ x: 3, z: 5 }, null, 6)).toEqual({ x: 3, z: 5 });
+    expect(clampFocus({ x: 20, z: 9.5 }, bounds, 6, 2.5)).toEqual({ x: 20, z: 7.5 }); // held back from the open front
+    expect(clampFocus({ x: 20, z: 1 }, { x: 0, z: 0, w: 40, d: 2 }, 6, 2.5)).toEqual({ x: 20, z: 0 });
+  });
+
+  it('measures half the view width at the focus', () => {
+    expect(halfViewWidth(90, 1, 10)).toBeCloseTo(10);
+    expect(halfViewWidth(30, 16 / 9, 13)).toBeCloseTo(Math.tan(Math.PI / 12) * 13 * 16 / 9);
+  });
+
+  it('has a low outdoor preset and a higher, closer indoor one', () => {
+    expect(CAMERA_PRESETS.outdoor.pitchDeg).toBe(26);
+    expect(CAMERA_PRESETS.indoor.pitchDeg).toBe(42);
+    expect(CAMERA_PRESETS.indoor.distance).toBeLessThan(CAMERA_PRESETS.outdoor.distance);
+    expect(CAMERA_PRESETS.outdoor.lookHeight).toBeGreaterThan(CAMERA_PRESETS.indoor.lookHeight); // roofs and the skyline outdoors
   });
 });
 
@@ -46,22 +69,21 @@ describe('createFollowCamera', () => {
     expect(cam.camera.aspect).toBe(2);
   });
 
-  it('fades walls between the camera and the player, and restores them', () => {
-    const cam = createFollowCamera(1);
-    cam.follow(new THREE.Vector3(0, 0, 0), { snap: true });
-    cam.camera.updateMatrixWorld();
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 0.4), new THREE.MeshBasicMaterial({ transparent: false, opacity: 1 }));
-    wall.position.set(0, 1, 3);
-    wall.updateMatrixWorld();
-    for (let i = 0; i < 60; i++) cam.updateOccluders([wall], new THREE.Vector3(0, 0, 0), 1 / 30);
-    expect(wall.material.opacity).toBeLessThan(0.5);
-    expect(wall.material.transparent).toBe(true);
-    expect(cam.fadedCount()).toBe(1);
-    wall.position.set(50, 0, 50);
-    wall.updateMatrixWorld();
-    for (let i = 0; i < 60; i++) cam.updateOccluders([wall], new THREE.Vector3(0, 0, 0), 1 / 30);
-    expect(wall.material.opacity).toBe(1);
-    expect(cam.fadedCount()).toBe(0);
+  it("switches to a map's preset and bounds, snapping, and stops at the map's edge while following", () => {
+    const cam = createFollowCamera(16 / 9);
+    const target = new THREE.Object3D();
+    target.position.set(401, 0, 4);
+    cam.follow(target);
+    cam.useMap('indoor', { x: 400, z: 0, w: 32, d: 9 });
+    expect(cam.pitch).toBe(42);
+    expect(cam.distance).toBe(CAMERA_PRESETS.indoor.distance);
+    const edge = 400 + halfViewWidth(30, 16 / 9, CAMERA_PRESETS.indoor.distance);
+    expect(cam.camera.position.x).toBeCloseTo(edge, 5); // snapped, held off the west wall's edge
+    cam.setDistance(100);
+    expect(cam.distance).toBe(CAMERA_PRESETS.indoor.maxDistance);
+    cam.useMap('outdoor', null);
+    expect(cam.pitch).toBe(CAMERA_PRESETS.outdoor.pitchDeg);
+    expect(cam.camera.position.x).toBeCloseTo(401, 5);
   });
 });
 
@@ -76,19 +98,5 @@ describe('createFollowCamera with bad frame times', () => {
     expect(cam.camera.position.x).toBe(0);
     for (let i = 0; i < 300; i++) cam.update(1 / 60);
     expect(cam.camera.position.x).toBeCloseTo(4, 2);
-  });
-
-  it('ignores NaN and Infinity when fading walls', () => {
-    const cam = createFollowCamera(1);
-    cam.follow(new THREE.Vector3(0, 0, 0), { snap: true });
-    cam.camera.updateMatrixWorld();
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 0.4), new THREE.MeshBasicMaterial({ transparent: false, opacity: 1 }));
-    wall.position.set(0, 1, 3);
-    wall.updateMatrixWorld();
-    cam.updateOccluders([wall], new THREE.Vector3(0, 0, 0), NaN);
-    cam.updateOccluders([wall], new THREE.Vector3(0, 0, 0), Infinity);
-    expect(wall.material.opacity).toBe(1);
-    for (let i = 0; i < 60; i++) cam.updateOccluders([wall], new THREE.Vector3(0, 0, 0), 1 / 30);
-    expect(wall.material.opacity).toBeLessThan(0.5);
   });
 });

@@ -1,6 +1,8 @@
 // The beat machine: runs a chapter's screenplay (content/chapterN/beats.js).
 //
-// A chapter is { number, startBeat, beats: [...], dialogues: { id: def } }.
+// A chapter is { number, startBeat, beats: [...], dialogues: { id: def }, interactions? }.
+// Chapter-wide `interactions` (same shape as a beat's) apply in every beat for targets the
+// current beat doesn't list: extras' lines, locked doors (Plan 5 spec §3.6).
 // A beat is { id, checkpoint?, restore?, trigger?, next?, actions?, interactions? }:
 //  - Entering a beat runs its `actions` (a cutscene). While actions run the director is busy.
 //  - After that the player roams. The director watches the *next* beat's `trigger`
@@ -37,7 +39,7 @@ import { createDialogue } from './dialogue.js';
 export const DIRECTOR_ACTIONS = ['dialogue', 'branch', 'setBeat', 'effects', 'endChapter'];
 export const HOST_ACTIONS = [
   'titleCard', 'moveTo', 'face', 'teleport', 'emote', 'fadeOut', 'fadeIn',
-  'setTime', 'wait', 'cutscene', 'camera', 'show', 'hide', 'sound', 'sit', 'stand',
+  'setTime', 'wait', 'cutscene', 'camera', 'show', 'hide', 'sound', 'sit', 'stand', 'sfx',
 ];
 export const TRIGGER_KEYS = ['enterZone', 'interact', 'afterSec', 'or'];
 
@@ -51,6 +53,9 @@ export function createDirector({ chapter, ctx, host }) {
   let ended = false;
   let zone = null;
   let interacted = new Set();
+
+  // The beat's interactions over the chapter-wide ones.
+  const entries = () => ({ ...(chapter.interactions ?? {}), ...(beat?.interactions ?? {}) });
 
   async function sequence(fn) {
     busy = true;
@@ -195,7 +200,7 @@ export function createDirector({ chapter, ctx, host }) {
       if (busy || ended || !beat) return false;
       interacted.add(target);
       bus?.emit('interact', { target });
-      const dialogueId = resolveInteraction(beat.interactions?.[target]);
+      const dialogueId = resolveInteraction(entries()[target]);
       if (dialogueId) await sequence(() => runDialogue(dialogueId));
       await checkTriggers();
       return dialogueId != null;
@@ -204,13 +209,14 @@ export function createDirector({ chapter, ctx, host }) {
     // The dialogue Talk on `target` would open right now, or null (markers show "!" or "…" from it).
     interactionFor(target) {
       if (busy || ended || !beat) return null;
-      return resolveInteraction(beat.interactions?.[target]);
+      return resolveInteraction(entries()[target]);
     },
 
     // Targets that would open a dialogue right now (for "!" markers).
     availableInteractions() {
       if (busy || ended || !beat) return [];
-      return Object.keys(beat.interactions ?? {}).filter((t) => resolveInteraction(beat.interactions[t]) != null);
+      const all = entries();
+      return Object.keys(all).filter((t) => resolveInteraction(all[t]) != null);
     },
   };
 }

@@ -18,8 +18,11 @@ export const openingDialogues = {
   }),
   k1_isabel: dialogue('k1_isabel', {
     a: { who: 'isabel', face: 'smile', text: 'Ay, {title} {name}! Welcome, welcome. Come up, come in. Everyone is in the {g:sala}.', effects: { bio: 'isabel' }, next: 'b' },
-    b: { who: 'isabel', text: 'Will you take a cigar? Some {g:buyo}? No? Then go, go and enjoy yourself.', next: 'c' },
-    c: { who: 'narrator', text: 'Somewhere behind her a plate shatters. Tía Isabel hurries away, muttering, "Jesús! Just wait, you rascals!"', next: null },
+    b: { who: 'isabel', text: 'Will you take a cigar? Some {g:buyo}? No? Then go, go and enjoy yourself.', next: null },
+  }),
+  // After the crash of a plate somewhere in the house (Plan 5a: the sound plays between the two).
+  k1_isabel_exit: dialogue('k1_isabel_exit', {
+    a: { who: 'narrator', text: 'Somewhere behind her a plate shatters. Tía Isabel hurries away, muttering, "Jesús! Just wait, you rascals!"', next: null },
   }),
   k1_sala_scene: dialogue('k1_sala_scene', {
     a: { who: 'narrator', text: 'In the {g:sala}, among massive mirrors and gleaming chandeliers, the guests are assembled. A grand piano of great price stands on a platform; tonight it has the further virtue of not being played.', next: 'b' },

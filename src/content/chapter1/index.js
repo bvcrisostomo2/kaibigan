@@ -9,6 +9,7 @@ import { salaDialogues } from './dialogue/sala.js';
 import { argumentDialogues } from './dialogue/argument.js';
 import { entranceDialogues } from './dialogue/entrance.js';
 import { dinnerDialogues } from './dialogue/dinner.js';
+import { houseDialogues, houseInteractions } from './dialogue/house.js';
 import { GLOSSARY } from '../glossary.js';
 import { HINTS } from '../hints.js';
 
@@ -41,7 +42,9 @@ export const chapter1 = {
     ],
   },
   cutscenes: chapter1Cutscenes,
-  dialogues: { ...openingDialogues, ...salaDialogues, ...argumentDialogues, ...entranceDialogues, ...dinnerDialogues },
+  dialogues: { ...openingDialogues, ...salaDialogues, ...argumentDialogues, ...entranceDialogues, ...dinnerDialogues, ...houseDialogues },
+  // The household's and the street's lines, and the shut doors, in every beat (Plan 5a).
+  interactions: houseInteractions,
   beats: chapter1Beats,
 };
 

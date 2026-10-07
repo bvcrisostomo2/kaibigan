@@ -40,12 +40,13 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
   let cardPhase = null;
   let disposed = false;
   let markersKey = null;
-  const hud = { location: null, time: null, controlsVisible: true };
+  // place: the current map's { name, detail } (Plan 5a), shown in preference to the beat's location.
+  const hud = { location: null, place: null, time: null, controlsVisible: true };
   const cards = createTitleCards();
   const toasts = createToasts();
 
   const blocking = () => dialogue != null || glossaryOpen || journalTab != null || menuCursor != null || ended;
-  const renderHud = () => views.hud.render(hudView(hud));
+  const renderHud = () => views.hud.render(hudView({ ...hud, location: hud.place ?? hud.location }));
   const renderToasts = () => views.toasts.render(toasts.items);
   const resumeTyping = () => {
     if (dialogue && !glossaryOpen && menuCursor == null) dialogue.model.pause(false);
@@ -370,6 +371,12 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     setTime(time) {
       if (disposed) return;
       hud.time = time;
+      renderHud();
+    },
+    // The map the player is on ({ name, detail }, or null to fall back to the beat's location).
+    setPlace(place) {
+      if (disposed) return;
+      hud.place = place?.name ? place : null;
       renderHud();
     },
     // A brief notice from the game, such as the low frame-rate suggestion (spec §7).

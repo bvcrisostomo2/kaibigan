@@ -64,13 +64,17 @@ export const dinnerDialogues = {
     t: { who: 'ibarra', text: 'Gentlemen, don\'t be surprised at the familiarity with which our former curate treats me. He treated me so when I was a child, and the years seem to make no difference to his Reverence.', next: 'u' },
     u: { who: 'ibarra', text: 'I appreciate it, too, because it recalls the days when his Reverence visited our home and honoured my father\'s table.', next: 'v' },
     v: { who: 'narrator', text: 'The Dominican glances at the Franciscan, who is trembling visibly. Ibarra rises.', next: 'w' },
-    w: { who: 'ibarra', text: 'You will now permit me to retire. I have just arrived, I must leave tomorrow morning, and there is business I must attend to. Gentlemen: all for Spain and the Philippines!', next: 'x' },
+    w: { who: 'ibarra', text: 'You will now permit me to retire. I have just arrived, I must leave tomorrow morning, and there is business I must attend to. Gentlemen: all for Spain and the Philippines!', next: null },
+  }),
+
+  // After the glasses touch (Plan 5a: the sound plays between the two dialogues).
+  k3_exit: { id: 'k3_exit', start: 'x', nodes: {
     x: { who: 'narrator', text: 'He drains his glass, which he had not touched before. The old lieutenant silently does the same.', next: 'y' },
     y: { who: 'tiago', text: 'Don\'t go! María Clara will be here; Isabel has gone to fetch her. And the new curate of your town is coming too.', next: 'z' },
     z: { who: 'ibarra', text: 'I\'ll call tomorrow before I leave. I have a very important visit to make now.', next: 'aa' },
     aa: { who: 'ibarra', if: { flag: 'ch1_defied_damaso' }, text: 'Thank you, my friend. I won\'t forget it.', next: 'ab' },
     ab: { who: 'ibarra', if: { flag: 'ch1_tactful' }, face: 'smile', text: 'Germany will keep for another evening. Thank you.', next: null },
-  }),
+  } },
 
   k3_after: dialogue('k3_after', {
     a: { who: 'damaso', text: 'Do you see? That comes from pride. They can\'t stand to have the curate correct them. It\'s the evil result of sending young men to Europe. The government ought to prohibit it.', next: 'b' },

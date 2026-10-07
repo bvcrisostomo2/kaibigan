@@ -1,8 +1,11 @@
-// Synthesized audio (spec §4.4) — no audio files. Each layer is a short procedurally generated
-// loop (pure generator functions below, testable without Web Audio), played through gains:
-//   chatter (party murmur), crickets, river, music (plucked-guitar kundiman loop).
+// Synthesized audio (spec §4.4; Plan 5 spec §3.7) — no audio files. Each layer is a short
+// procedurally generated loop (pure generator functions below, testable without Web Audio),
+// played through gains: chatter (party murmur), crickets, river, music (plucked-guitar kundiman
+// loop), kitchen (fire and sizzle), strings (the party's orchestra). One-shot effects (SFX) are
+// rendered once and played on demand: a plate crashing, doors, stairs, glasses, cutlery,
+// a laugh, water lapping, a banca's pole.
 export const SAMPLE_RATE = 22050;
-export const LAYERS = ['chatter', 'crickets', 'river', 'music'];
+export const LAYERS = ['chatter', 'crickets', 'river', 'music', 'kitchen', 'strings'];
 
 function prng(seed) {
   let s = seed >>> 0;
@@ -131,14 +134,161 @@ export function renderChatter(seconds = 6, sampleRate = SAMPLE_RATE) {
   return out;
 }
 
-const GENERATORS = { chatter: renderChatter, crickets: renderCrickets, river: renderRiver, music: renderMusic };
+// Scale a buffer so its loudest sample is `peak` (all effects stay well clear of clipping).
+function normalise(out, peak) {
+  let max = 0;
+  for (let i = 0; i < out.length; i++) max = Math.max(max, Math.abs(out[i]));
+  const g = max > 0 ? peak / max : 0;
+  for (let i = 0; i < out.length; i++) out[i] *= g;
+  return out;
+}
+
+// A damped sine added into out from a start sample.
+function ping(out, start, freq, seconds, decay, amp, sampleRate) {
+  const len = Math.round(seconds * sampleRate);
+  for (let i = 0; i < len && start + i < out.length; i++) out[start + i] += Math.sin((2 * Math.PI * freq * i) / sampleRate) * Math.exp(-i / (decay * sampleRate)) * amp;
+}
+
+// A creak: a thin, slowly falling buzz under a swell.
+function creak(out, start, seconds, from, to, amp, sampleRate) {
+  const len = Math.round(seconds * sampleRate);
+  let phase = 0;
+  for (let i = 0; i < len && start + i < out.length; i++) {
+    phase = (phase + (from + ((to - from) * i) / len) / sampleRate) % 1;
+    out[start + i] += (phase < 0.14 ? 1 : -0.16) * amp * Math.sin((Math.PI * i) / len);
+  }
+}
+
+// The kitchen: a soft sizzle (high, fizzing noise) with the odd crackle of the wood fire.
+export function renderKitchen(seconds = 5, sampleRate = SAMPLE_RATE) {
+  const r = prng(31);
+  const out = new Float32Array(Math.round(seconds * sampleRate));
+  let y = 0;
+  for (let i = 0; i < out.length; i++) {
+    const n = r() * 2 - 1;
+    y += 0.5 * (n - y);
+    out[i] = (n - y) * (0.5 + 0.5 * Math.sin((i / sampleRate) * 1.3) ** 2) * 0.35; // fizz, gently swelling
+  }
+  for (let t = 0; t < out.length; t += Math.round(sampleRate * (0.08 + r() * 0.5))) {
+    const len = Math.round(sampleRate * 0.006);
+    const amp = 0.4 + r() * 0.6;
+    for (let i = 0; i < len && t + i < out.length; i++) out[t + i] += (r() * 2 - 1) * amp * (1 - i / len);
+  }
+  return normalise(out, 0.4);
+}
+
+// The orchestra in the caída: harp and guitars arpeggiating the kundiman's chords an octave up
+// in the music loop's 3/4 bars (so the two loops line up), over a bowed violin holding each
+// chord's top note (a soft sawtooth with vibrato).
+export function renderStrings(sampleRate = SAMPLE_RATE) {
+  const beat = 60 / BPM;
+  const out = new Float32Array(Math.round(KUNDIMAN_BARS.length * 3 * beat * sampleRate));
+  KUNDIMAN_BARS.forEach((chord, bar) => {
+    for (let n = 0; n < 6; n++) {
+      const start = Math.round((bar * 3 + n * 0.5) * beat * sampleRate);
+      const tone = pluck(noteFreq(chord[n % chord.length]) * 2, beat * 1.5, sampleRate, 0.994, bar * 8 + n + 3);
+      for (let i = 0; i < tone.length && start + i < out.length; i++) out[start + i] += tone[i] * 0.22;
+    }
+    const top = noteFreq(chord[chord.length - 1]) * 2;
+    const start = Math.round(bar * 3 * beat * sampleRate);
+    const len = Math.round(3 * beat * sampleRate);
+    let phase = 0;
+    for (let i = 0; i < len && start + i < out.length; i++) {
+      const vib = 1 + 0.006 * Math.sin((2 * Math.PI * 5.5 * i) / sampleRate);
+      phase = (phase + (top * vib) / sampleRate) % 1;
+      const env = Math.min(1, i / (0.25 * sampleRate)) * Math.min(1, (len - i) / (0.3 * sampleRate));
+      out[start + i] += (phase * 2 - 1) * 0.06 * env;
+    }
+  });
+  lowpass(out, 0.35);
+  return normalise(out, 0.45);
+}
+
+// One-shot effects, each a short buffer peaking at 0.5–0.8.
+export const SFX = {
+  // A plate shattering on a tiled floor: a crash of bright noise, then shards ringing and skittering.
+  plate(sampleRate = SAMPLE_RATE) {
+    const r = prng(41);
+    const out = new Float32Array(Math.round(0.9 * sampleRate));
+    for (let i = 0; i < 0.12 * sampleRate; i++) out[i] = (r() * 2 - 1) * Math.exp(-i / (0.03 * sampleRate));
+    for (let k = 0; k < 14; k++) ping(out, Math.round(r() * 0.6 * sampleRate), 2200 + r() * 3200, 0.15, 0.03 + r() * 0.04, 0.5, sampleRate);
+    return normalise(out, 0.8);
+  },
+  // A heavy wooden door: the latch, a creak, and the thud of it closing.
+  door(sampleRate = SAMPLE_RATE) {
+    const out = new Float32Array(Math.round(0.7 * sampleRate));
+    ping(out, 0, 1900, 0.04, 0.008, 0.5, sampleRate);
+    creak(out, Math.round(0.05 * sampleRate), 0.35, 310, 270, 0.12, sampleRate);
+    ping(out, Math.round(0.45 * sampleRate), 70, 0.25, 0.06, 1, sampleRate);
+    return normalise(lowpass(out, 0.5), 0.7);
+  },
+  // Wooden stairs taking a step: a low knock and a short creak.
+  stairs(sampleRate = SAMPLE_RATE) {
+    const out = new Float32Array(Math.round(0.35 * sampleRate));
+    ping(out, 0, 110, 0.12, 0.03, 1, sampleRate);
+    creak(out, Math.round(0.03 * sampleRate), 0.27, 260, 240, 0.2, sampleRate);
+    return normalise(lowpass(out, 0.45), 0.6);
+  },
+  // Two glasses touching in a toast.
+  glasses(sampleRate = SAMPLE_RATE) {
+    const out = new Float32Array(Math.round(1.2 * sampleRate));
+    for (const [t, freq] of [[0, 2600], [0.09, 3150]]) {
+      ping(out, Math.round(t * sampleRate), freq, 1.1, 0.35, 0.6, sampleRate);
+      ping(out, Math.round(t * sampleRate), freq * 2.7, 0.5, 0.12, 0.25, sampleRate);
+    }
+    return normalise(out, 0.6);
+  },
+  // Spoons and forks on plates: a few quick metallic ticks.
+  cutlery(sampleRate = SAMPLE_RATE) {
+    const r = prng(53);
+    const out = new Float32Array(Math.round(0.8 * sampleRate));
+    for (let k = 0; k < 6; k++) ping(out, Math.round(r() * 0.7 * sampleRate), 3800 + r() * 2400, 0.06, 0.012, 0.6, sampleRate);
+    return normalise(out, 0.6);
+  },
+  // A short burst of laughter: "ha-ha-ha-ha", a voiced pulse through the two resonances of "a".
+  laugh(sampleRate = SAMPLE_RATE) {
+    const out = new Float32Array(Math.round(0.9 * sampleRate));
+    for (let k = 0; k < 4; k++) {
+      const start = Math.round((0.05 + k * 0.19) * sampleRate);
+      const len = Math.round(0.13 * sampleRate);
+      const pitch = 210 - k * 12;
+      for (let i = 0; i < len && start + i < out.length; i++) {
+        const t = i / sampleRate;
+        const voice = Math.sin(2 * Math.PI * 750 * t) * 0.6 + Math.sin(2 * Math.PI * 1250 * t) * 0.35;
+        const pulse = 0.5 + 0.5 * Math.cos(2 * Math.PI * pitch * t);
+        out[start + i] += voice * pulse ** 3 * Math.sin((Math.PI * i) / len);
+      }
+    }
+    return normalise(lowpass(out, 0.6), 0.5);
+  },
+  // Water slapping against the stone landing.
+  lap(sampleRate = SAMPLE_RATE) {
+    const r = prng(61);
+    const out = new Float32Array(Math.round(0.8 * sampleRate));
+    for (let i = 0; i < out.length; i++) out[i] = (r() * 2 - 1) * Math.sin((Math.PI * i) / out.length) ** 2;
+    lowpass(out, 0.08);
+    return normalise(out, 0.5);
+  },
+  // A banca's pole dipping and pushing off: a soft splash and a knock on the hull.
+  pole(sampleRate = SAMPLE_RATE) {
+    const r = prng(67);
+    const out = new Float32Array(Math.round(0.6 * sampleRate));
+    for (let i = 0; i < 0.25 * sampleRate; i++) out[i] = (r() * 2 - 1) * Math.exp(-i / (0.06 * sampleRate));
+    lowpass(out, 0.25);
+    ping(out, Math.round(0.3 * sampleRate), 160, 0.2, 0.04, 0.8, sampleRate);
+    return normalise(out, 0.6);
+  },
+};
+
+const GENERATORS = { chatter: renderChatter, crickets: renderCrickets, river: renderRiver, music: renderMusic, kitchen: renderKitchen, strings: renderStrings };
 
 // Web Audio wrapper. Nothing plays until unlock() is called from a user gesture.
 export function createAudio({ AudioContextClass = globalThis.AudioContext } = {}) {
   let ctx = null;
   let master = null;
   const gains = {};
-  const levels = { chatter: 0, crickets: 0, river: 0, music: 0 };
+  const levels = Object.fromEntries(LAYERS.map((name) => [name, 0]));
+  const sfxBuffers = {};
   let volume = 0.8;
   let muted = false;
 
@@ -169,6 +319,22 @@ export function createAudio({ AudioContextClass = globalThis.AudioContext } = {}
         src.start();
       }
       applyLevels(0.1);
+    },
+    // Play a one-shot effect (an SFX key) at a level (0–1). Before unlock, nothing plays.
+    play(name, level = 1) {
+      if (!SFX[name]) throw new Error(`Unknown sound effect '${name}'`);
+      if (!ctx) return;
+      if (!sfxBuffers[name]) {
+        const data = SFX[name](SAMPLE_RATE);
+        sfxBuffers[name] = ctx.createBuffer(1, data.length, SAMPLE_RATE);
+        sfxBuffers[name].copyToChannel(data, 0);
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = sfxBuffers[name];
+      const g = ctx.createGain();
+      g.gain.value = Math.max(0, Math.min(1, level));
+      src.connect(g).connect(master);
+      src.start();
     },
     // Set one layer's level (0–1).
     setLayer(name, level) {

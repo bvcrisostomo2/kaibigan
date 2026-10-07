@@ -115,6 +115,26 @@ describe('director: interactions', () => {
   });
 });
 
+describe('director: chapter-wide interactions', () => {
+  const chapter = {
+    number: 1,
+    startBeat: 'a',
+    interactions: { cook: 'cook_line', door: 'locked_line', guide: 'chapter_guide' },
+    dialogues: { cook_line: line('cook_line'), locked_line: line('locked_line'), chapter_guide: line('chapter_guide'), beat_guide: line('beat_guide') },
+    beats: [{ id: 'a', interactions: { guide: 'beat_guide' } }, { id: 'b', trigger: { flag: 'never' } }],
+  };
+
+  it("apply in every beat, and a beat's own interaction for the same target wins", async () => {
+    const g = headless(chapter);
+    await g.director.start();
+    expect(g.director.availableInteractions().sort()).toEqual(['cook', 'door', 'guide']);
+    expect(g.director.interactionFor('cook')).toBe('cook_line');
+    expect(g.director.interactionFor('guide')).toBe('beat_guide');
+    expect(await g.director.interact('door')).toBe(true);
+    expect(g.log).toContainEqual(['line', 'locked_line', 'a']);
+  });
+});
+
 describe('director: triggers', () => {
   it('waits for afterSec and the zone together (or-branch)', async () => {
     const g = game(() => 2);

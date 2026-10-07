@@ -10,6 +10,12 @@ describe('props', () => {
     expect(Array.isArray(p.lights)).toBe(true);
   });
 
+  it("has the house's furnishings and the street's things (Plan 5a)", () => {
+    for (const t of ['calesa', 'sacks', 'firewood', 'tinaja', 'palayok', 'bilao', 'shelf', 'rope', 'niche', 'cat', 'arches', 'balustrade', 'paperLantern', 'birdcage', 'glassGlobe', 'botete', 'sideboard', 'candelabrum', 'rug', 'dais', 'arbour', 'palm', 'washTub', 'kalan', 'choppingBlock', 'altar', 'kneeler', 'stall', 'carromata', 'mooringPost', 'banca', 'stiltHouse']) expect(PROPS, t).toHaveProperty(t);
+    expect(makeProp('kalan', {}).lights[0].flicker).toBeGreaterThan(0.2); // the fire
+    expect(makeProp('balustrade', { w: 6 }).footprint).toEqual({ w: 6, d: 0.3 }); // you can't step off the azotea
+  });
+
   it('rotates footprints with odd quarter turns', () => {
     const p0 = makeProp('table', { w: 3, d: 1.2 });
     const p1 = makeProp('table', { w: 3, d: 1.2, rot: 1 });
