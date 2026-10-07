@@ -31,3 +31,10 @@ export function placePlayer(player, point) {
 export function inPlay(game) {
   return game != null && !game.ui.isBlocking && !game.director.busy;
 }
+
+// Whether a cast member turns to face the player when close: only one who is standing still, so a
+// character walking away (Ibarra leaving the dinner) keeps facing where he walks, and diners keep
+// facing the table.
+export function turnsToPlayer(actor) {
+  return actor.object.visible && !actor.seated && actor.mode === 'idle';
+}

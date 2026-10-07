@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spawnPoint, ambienceFor, inPlay, placePlayer } from '../../src/boot/rules.js';
+import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer } from '../../src/boot/rules.js';
 
 describe('spawnPoint', () => {
   const chapter = { beats: [{ id: 'a', spawn: 'door' }, { id: 'b' }, { id: 'c', spawn: 'gone' }] };
@@ -47,5 +47,17 @@ describe('placePlayer', () => {
     };
     placePlayer(player, { x: 1, y: 0, z: 2 });
     expect(calls).toEqual([['stand'], ['move', { x: 1, y: 0, z: 2 }]]);
+  });
+});
+
+describe('turnsToPlayer', () => {
+  const actor = (mode, { visible = true, seated = false } = {}) => ({ mode, seated, object: { visible } });
+
+  it('turns only standing, unseated, visible characters toward the player, never one who is walking or sitting', () => {
+    expect(turnsToPlayer(actor('idle'))).toBe(true);
+    expect(turnsToPlayer(actor('walk'))).toBe(false); // Ibarra walking out keeps facing where he walks
+    expect(turnsToPlayer(actor('run'))).toBe(false);
+    expect(turnsToPlayer(actor('idle', { seated: true }))).toBe(false); // diners keep facing the table
+    expect(turnsToPlayer(actor('idle', { visible: false }))).toBe(false);
   });
 });
