@@ -5,7 +5,7 @@
 //   3. the procedural painter (art/characters.js)
 import * as THREE from 'three';
 import { drawTexture } from './textures.js';
-import { drawCharacterSheet, drawPortrait, sheetAnims, CELL_W, CELL_H, SHEET_COLS, SHEET_ROWS } from './characters.js';
+import { drawCharacterSheet, drawPortrait, sheetAnims, sheetRows, CELL_W, CELL_H, SHEET_COLS } from './characters.js';
 import { COSTUMES } from './costumes.js';
 import { drawHandmadeSheet } from './handmade.js';
 import { HANDMADE } from './cast/index.js';
@@ -60,7 +60,8 @@ export function sheetFor(costumeId) {
       const s = drawHandmadeSheet(HANDMADE[costumeId]);
       built.set(costumeId, { texture: toTexture(s.pixels), cellW: CELL_W, cellH: CELL_H, cols: s.cols, rows: s.rows, footMargin: s.footMargin, anims: s.anims });
     } else {
-      built.set(costumeId, { texture: toTexture(drawCharacterSheet(COSTUMES[costumeId])), cellW: CELL_W, cellH: CELL_H, cols: SHEET_COLS, rows: SHEET_ROWS, footMargin: 2, anims: sheetAnims() });
+      const costume = COSTUMES[costumeId];
+      built.set(costumeId, { texture: toTexture(drawCharacterSheet(costume)), cellW: CELL_W, cellH: CELL_H, cols: SHEET_COLS, rows: sheetRows(costume), footMargin: 2, anims: sheetAnims(costume) });
     }
   }
   return built.get(costumeId);

@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
-  cellFor, sheetAnims, drawFrame, drawCharacterSheet, drawPortrait, PROPORTIONS,
+  cellFor, sheetAnims, sheetRows, drawFrame, drawCharacterSheet, drawPortrait, PROPORTIONS,
   CELL_W, CELL_H, SHEET_COLS, SHEET_ROWS, DIRS, EXPRESSIONS, GESTURES,
 } from '../../src/art/characters.js';
+import { ACTIVITY_NAMES, ACTIVITY_FRAMES } from '../../src/art/activities.js';
 import { COSTUMES } from '../../src/art/costumes.js';
 
 const lowestRow = (c) => {
@@ -41,6 +42,50 @@ describe('sheetAnims', () => {
     for (const e of EXPRESSIONS) expect(anims[`expression_${e}`]).toEqual([{ col: EXPRESSIONS.indexOf(e), row: 4 }]);
     for (const g of GESTURES) expect(anims[`gesture_${g}`]).toEqual([{ col: GESTURES.indexOf(g), row: 5 }]);
     DIRS.forEach((dir, col) => expect(anims[`sit_${dir}`]).toEqual([{ col, row: 6 }]));
+  });
+});
+
+describe('activities (Plan 5a extras at work)', () => {
+  const working = Object.entries(COSTUMES).filter(([, c]) => c.activities?.length);
+
+  it('gives each working costume a row per activity: two front frames, two left, two right', () => {
+    for (const [id, c] of working) {
+      expect(sheetRows(c), id).toBe(SHEET_ROWS + c.activities.length);
+      const anims = sheetAnims(c);
+      c.activities.forEach((a, i) => {
+        for (const [v, dir] of ['down', 'left', 'right'].entries()) {
+          expect(anims[`act_${a}_${dir}`], `${id} ${a} ${dir}`).toEqual([0, 1].map((f) => ({ col: v * ACTIVITY_FRAMES + f, row: SHEET_ROWS + i })));
+        }
+      });
+    }
+    expect(drawCharacterSheet(COSTUMES.cook).height).toBe(CELL_H * sheetRows(COSTUMES.cook));
+    expect(sheetRows(COSTUMES.ibarra)).toBe(SHEET_ROWS); // the cast has none
+  });
+
+  it.each(ACTIVITY_NAMES)('draws %s in every view, inside the cell, with the two frames differing', (activity) => {
+    const [, costume] = working.find(([, c]) => c.activities.includes(activity)) ?? [null, COSTUMES.maid];
+    for (const dir of ['down', 'left', 'right']) {
+      const a = drawFrame(costume, { dir, activity, frame: 0 });
+      const b = drawFrame(costume, { dir, activity, frame: 1 });
+      expect(a.coverage(), dir).toBeGreaterThan(300);
+      expect(lowestRow(a), dir).toBeLessThan(CELL_H - 1);
+      expect(Array.from(a.data), `${activity} ${dir}`).not.toEqual(Array.from(b.data));
+    }
+    const left = drawFrame(costume, { dir: 'left', activity, frame: 0 });
+    const right = drawFrame(costume, { dir: 'right', activity, frame: 0 });
+    for (let y = 0; y < CELL_H; y++) for (let x = 0; x < CELL_W; x++) expect(right.get(x, y)).toBe(left.get(CELL_W - 1 - x, y));
+  });
+
+  it('rejects an unknown activity', () => {
+    expect(() => drawFrame(COSTUMES.maid, { activity: 'juggle' })).toThrow("Unknown activity 'juggle'");
+  });
+
+  it('dresses the household plainly: a headscarf on the cook, the muchacho barefoot', () => {
+    expect(COSTUMES.cook.accessories).toContain('headscarf');
+    const bare = drawFrame(COSTUMES.cook, { dir: 'down' });
+    const hatless = drawFrame({ ...COSTUMES.cook, accessories: ['tapis'] }, { dir: 'down' });
+    expect(Array.from(bare.data)).not.toEqual(Array.from(hatless.data));
+    expect(COSTUMES.muchacho.colors.shoes).toBe(COSTUMES.muchacho.skin);
   });
 });
 

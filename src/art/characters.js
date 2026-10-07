@@ -11,12 +11,15 @@
 //   row 4:    front-facing expressions: neutral, smile, frown, shock, angry
 //   row 5:    front-facing gestures: bow, point, fan
 //   row 6:    seated, one frame per direction: down, left, right, up
+//   rows 7+:  one row per activity the costume lists (costume.activities, art/activities.js):
+//             cols 0–1 front (down), 2–3 side facing left, 4–5 side facing right (mirrored)
 import { PixelCanvas, parseHex, shade } from './pixel.js';
+import { ACTIVITIES, ACTIVITY_FRAMES } from './activities.js';
 
 export const CELL_W = 48;
 export const CELL_H = 64;
 export const SHEET_COLS = 8;
-export const SHEET_ROWS = 7;
+export const SHEET_ROWS = 7; // before any activity rows (sheetRows(costume) counts them)
 export const DIRS = ['down', 'left', 'right', 'up'];
 export const WALK_FRAMES = 4;
 export const IDLE_FRAMES = 2;
@@ -270,7 +273,13 @@ function drawArm(r, costume, pose, which) {
   const sh = [r.cx + s * (r.sw - 1.5), r.shoulderY + 2];
   let elbow;
   let hand;
-  if (r.side) {
+  const held = pose.hands?.[which];
+  if (held) {
+    // An activity puts the hand somewhere (e.g. on a broom handle); the elbow bends outward.
+    hand = held;
+    if (r.side) sh[0] = r.cx + (which === 'left' ? -2 : 2);
+    elbow = [(sh[0] + hand[0]) / 2 + s * 2, (sh[1] + hand[1]) / 2 + 2];
+  } else if (r.side) {
     const swing = pose.arm * 2.5;
     const far = which === 'left';
     elbow = [r.cx + (far ? -1 : 1) - swing * (far ? -1 : 1) * 0.5, r.shoulderY + 9];
@@ -633,6 +642,14 @@ function drawHair(r, head, costume, view) {
 }
 
 function drawHat(r, head, costume, view) {
+  if (costume.accessories?.includes('headscarf')) {
+    // A cloth tied over the hair: a band across the crown, knotted at the back.
+    const L = new PixelCanvas(CELL_W, CELL_H);
+    const scarf = ramp4(costume.colors.scarf ?? '#8a3a2a');
+    ellipse(L, head.x0 - 1, r.headTop - 1, head.x1 + 1, r.headTop + 5, scarf);
+    if (view === 'up') L.fillRect(Math.round(r.cx - 1), r.headTop + 5, 3, 3, scarf[2]);
+    return outlineLayer(L);
+  }
   if (!costume.accessories?.includes('tricornio')) return null;
   const L = new PixelCanvas(CELL_W, CELL_H);
   const hat = ramp4('#24222b');
@@ -659,8 +676,9 @@ function drawFan(r, costume) {
 
 // ---------- frame composition ----------
 
-export function drawFrame(costume, { dir = 'down', mode = 'idle', frame = 0, expression = null, gesture = null } = {}) {
+export function drawFrame(costume, { dir = 'down', mode = 'idle', frame = 0, expression = null, gesture = null, activity = null } = {}) {
   if (mode === 'sit') return drawSeated(costume, dir);
+  if (activity) return drawActivity(costume, dir, activity, frame);
   const base = expression || gesture ? IDLE[0] : mode === 'walk' ? WALK[((frame % WALK_FRAMES) + WALK_FRAMES) % WALK_FRAMES] : IDLE[((frame % IDLE_FRAMES) + IDLE_FRAMES) % IDLE_FRAMES];
   const view = gesture || expression ? 'down' : dir === 'left' || dir === 'right' ? 'side' : dir;
   const pose = { ...base, view, gesture, sit: false };
@@ -673,7 +691,22 @@ function drawSeated(costume, dir) {
   return drawPose(costume, dir, { ...IDLE[0], view, gesture: null, sit: true }, { expression: null, gesture: null });
 }
 
-function drawPose(costume, dir, pose, { expression, gesture }) {
+// An extra at work: the idle pose with the hands where the activity puts them and its object.
+function drawActivity(costume, dir, name, frame) {
+  const make = ACTIVITIES[name];
+  if (!make) throw new Error(`Unknown activity '${name}'`);
+  const view = dir === 'left' || dir === 'right' ? 'side' : 'down';
+  const f = ((frame % ACTIVITY_FRAMES) + ACTIVITY_FRAMES) % ACTIVITY_FRAMES;
+  const pose = { ...IDLE[0], view, gesture: null, sit: false };
+  let spec = make(f, view, rig(costume, pose));
+  if (spec.bob) {
+    pose.bob = spec.bob;
+    spec = make(f, view, rig(costume, pose));
+  }
+  return drawPose(costume, dir, { ...pose, hands: spec.hands ?? {} }, { expression: spec.closed ? 'closed' : null, gesture: null, object: spec.object ?? null, objectOver: !!spec.over });
+}
+
+function drawPose(costume, dir, pose, { expression, gesture, object = null, objectOver = false }) {
   const view = pose.view;
   const r = rig(costume, pose);
   const layers = [];
@@ -688,8 +721,10 @@ function drawPose(costume, dir, pose, { expression, gesture }) {
   if (view === 'up') layers.push(drawArm(r, costume, pose, 'left'), drawArm(r, costume, pose, 'right'));
   drawLegs(layers, r, costume, pose);
   layers.push(...drawBody(r, costume, view));
+  if (object && !objectOver) layers.push(object);
   if (view === 'down') layers.push(drawArm(r, costume, pose, 'left'), drawArm(r, costume, pose, 'right'));
   if (view === 'side') layers.push(drawArm(r, costume, pose, 'right'));
+  if (object && objectOver) layers.push(object);
   const head = drawHead(r, costume);
   if (view !== 'up') drawFace(head.layer, r, head, costume, gesture === 'bow' ? 'closed' : gesture === 'point' ? 'angry' : expression ?? 'neutral', view === 'side' ? 'side' : 'down');
   layers.push(outlineLayer(head.layer));
@@ -701,7 +736,7 @@ function drawPose(costume, dir, pose, { expression, gesture }) {
 
   const c = new PixelCanvas(CELL_W, CELL_H);
   for (const L of layers) c.blit(L);
-  return dir === 'right' && !gesture && !expression ? mirror(c) : c;
+  return dir === 'right' && view === 'side' ? mirror(c) : c;
 }
 
 function mirror(c) {
@@ -710,8 +745,13 @@ function mirror(c) {
   return m;
 }
 
+// Rows in a costume's sheet: the shared ones plus one per listed activity.
+export function sheetRows(costume) {
+  return SHEET_ROWS + (costume.activities?.length ?? 0);
+}
+
 export function drawCharacterSheet(costume) {
-  const sheet = new PixelCanvas(CELL_W * SHEET_COLS, CELL_H * SHEET_ROWS);
+  const sheet = new PixelCanvas(CELL_W * SHEET_COLS, CELL_H * sheetRows(costume));
   const put = (cell, col, row) => sheet.blit(cell, col * CELL_W, row * CELL_H);
   DIRS.forEach((dir, row) => {
     for (let f = 0; f < WALK_FRAMES; f++) put(drawFrame(costume, { dir, mode: 'walk', frame: f }), f, row);
@@ -720,6 +760,11 @@ export function drawCharacterSheet(costume) {
   EXPRESSIONS.forEach((expression, col) => put(drawFrame(costume, { expression }), col, 4));
   GESTURES.forEach((gesture, col) => put(drawFrame(costume, { gesture }), col, 5));
   DIRS.forEach((dir, col) => put(drawFrame(costume, { dir, mode: 'sit' }), col, 6));
+  (costume.activities ?? []).forEach((activity, i) => {
+    ['down', 'left', 'right'].forEach((dir, v) => {
+      for (let f = 0; f < ACTIVITY_FRAMES; f++) put(drawFrame(costume, { dir, activity, frame: f }), v * ACTIVITY_FRAMES + f, SHEET_ROWS + i);
+    });
+  });
   return sheet;
 }
 
@@ -737,8 +782,9 @@ export function drawPortrait(costume, expression = 'neutral') {
 }
 
 // Named animation index for the procedural sheet: { name: [{ col, row }, ...] }.
-// Names: walk_<dir> / idle_<dir> / sit_<dir> (dir = down|left|right|up), expression_<name>, gesture_<name>.
-export function sheetAnims() {
+// Names: walk_<dir> / idle_<dir> / sit_<dir> (dir = down|left|right|up), expression_<name>,
+// gesture_<name>, and act_<activity>_<down|left|right> for the costume's activities.
+export function sheetAnims(costume = {}) {
   const anims = {};
   DIRS.forEach((dir, row) => {
     anims[`walk_${dir}`] = Array.from({ length: WALK_FRAMES }, (_, f) => ({ col: f, row }));
@@ -747,5 +793,10 @@ export function sheetAnims() {
   EXPRESSIONS.forEach((name, col) => (anims[`expression_${name}`] = [{ col, row: 4 }]));
   GESTURES.forEach((name, col) => (anims[`gesture_${name}`] = [{ col, row: 5 }]));
   DIRS.forEach((dir, col) => (anims[`sit_${dir}`] = [{ col, row: 6 }]));
+  (costume.activities ?? []).forEach((activity, i) => {
+    ['down', 'left', 'right'].forEach((dir, v) => {
+      anims[`act_${activity}_${dir}`] = Array.from({ length: ACTIVITY_FRAMES }, (_, f) => ({ col: v * ACTIVITY_FRAMES + f, row: SHEET_ROWS + i }));
+    });
+  });
   return anims;
 }
