@@ -33,7 +33,7 @@ import { composeHost, routePresses } from '../ui/host.js';
 import { loadSettings, saveSettings, adjustSetting } from '../ui/settings.js';
 import { markersFor, talkTarget } from '../ui/markers.js';
 import { t } from '../ui/strings.js';
-import { spawnPoint, ambienceFor, inPlay, placePlayer } from './rules.js';
+import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer } from './rules.js';
 
 const LOOK_RANGE = 3; // characters turn to face the player this close
 const MARKER_HEIGHT = 1.9; // world units above a person's feet for "!" / "…"
@@ -307,7 +307,7 @@ export async function startGame(container, content) {
 
     for (const n of npcs) {
       const a = n.actor;
-      if (!a.object.visible || a.seated) continue; // diners keep facing the table
+      if (!turnsToPlayer(a)) continue;
       const dx = player.position.x - a.position.x;
       const dz = player.position.z - a.position.z;
       const close = Math.hypot(dx, dz) < LOOK_RANGE && sameFloor(a);
