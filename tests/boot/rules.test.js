@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer } from '../../src/boot/rules.js';
+import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer, enteredDoor } from '../../src/boot/rules.js';
 
 describe('spawnPoint', () => {
   const chapter = { beats: [{ id: 'a', spawn: 'door' }, { id: 'b' }, { id: 'c', spawn: 'gone' }] };
@@ -18,12 +18,18 @@ describe('ambienceFor', () => {
   const indoor = ['zaguan', 'sala'];
 
   it('plays chatter indoors and the river outdoors, crickets outdoors after dusk, music always', () => {
-    expect(ambienceFor('sala', 'dusk', indoor)).toEqual({ chatter: 0.25, river: 0.1, crickets: 0, music: 0.3 });
-    expect(ambienceFor('calle', 'dusk', indoor)).toEqual({ chatter: 0.05, river: 0.5, crickets: 0, music: 0.3 });
+    expect(ambienceFor('sala', 'dusk', indoor)).toEqual({ chatter: 0.25, river: 0.1, crickets: 0, music: 0.3, kitchen: 0, strings: 0 });
+    expect(ambienceFor('calle', 'dusk', indoor)).toEqual({ chatter: 0.05, river: 0.5, crickets: 0, music: 0.3, kitchen: 0, strings: 0 });
     expect(ambienceFor('calle', 'evening', indoor).crickets).toBe(0.15);
     expect(ambienceFor('calle', 'night', indoor).crickets).toBe(0.4);
     expect(ambienceFor('sala', 'night', indoor).crickets).toBe(0);
     expect(ambienceFor(null, 'dusk', indoor).river).toBe(0.5);
+  });
+
+  it("lets the level set layers per zone: the orchestra near the caída, the kitchen's sizzle", () => {
+    const table = { caida: { strings: 0.35, chatter: 0.3 }, kusina: { kitchen: 0.45 } };
+    expect(ambienceFor('caida', 'night', ['caida', 'kusina'], table)).toMatchObject({ strings: 0.35, chatter: 0.3, kitchen: 0, river: 0.1 });
+    expect(ambienceFor('kusina', 'night', ['caida', 'kusina'], table)).toMatchObject({ kitchen: 0.45, strings: 0 });
   });
 });
 
@@ -35,6 +41,7 @@ describe('inPlay', () => {
     expect(inPlay(game(true, false))).toBe(false); // a dialogue, the Journal or a menu
     expect(inPlay(game(false, true))).toBe(false); // a scene: a beat's actions are running
     expect(inPlay(null)).toBe(false); // the front screens
+    expect(inPlay(game(false, false), true)).toBe(false); // going through a door
   });
 });
 
@@ -59,5 +66,16 @@ describe('turnsToPlayer', () => {
     expect(turnsToPlayer(actor('run'))).toBe(false);
     expect(turnsToPlayer(actor('idle', { seated: true }))).toBe(false); // diners keep facing the table
     expect(turnsToPlayer(actor('idle', { visible: false }))).toBe(false);
+  });
+});
+
+describe('enteredDoor', () => {
+  const door = { id: 'front_door' };
+  const world = { doorAt: (p) => (p.z < 1 ? door : null) };
+
+  it('takes a door only when the player steps into it', () => {
+    expect(enteredDoor(world, { z: 2 }, { z: 0.5 })).toBe(door);
+    expect(enteredDoor(world, { z: 0.6 }, { z: 0.5 })).toBe(null); // already standing in it
+    expect(enteredDoor(world, { z: 3 }, { z: 2 })).toBe(null);
   });
 });

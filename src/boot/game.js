@@ -2,13 +2,17 @@
 //   startGame(container, { level, cast, chapter, glossary, notes, hints, letter })
 // Title → letter or code → play → Quit or chapter end → title. main.js passes Chapter 1; the dev
 // modes pass the Plan 3 demo. Cast members stand at their homeSpot (or wait offstage, hidden,
-// when it is null); the level's examinables are Talk targets like people.
+// when it is null); the level's examinables, locked doors and extras are Talk targets like people.
+// Plan 5a: the level's maps are regions of one world. Only the player's map is drawn; walking into
+// a door fades out, moves the player to the other map and fades back in, with that map's camera
+// and place card. Extras (background people) live through every beat.
 import * as THREE from 'three';
 import '../ui/ui.css';
 import { createRenderer, WebGLUnavailableError } from '../engine/renderer.js';
-import { createFollowCamera, CAMERA_DEFAULTS } from '../engine/camera.js';
+import { createFollowCamera } from '../engine/camera.js';
 import { createInput, bindKeyboard } from '../engine/input.js';
 import { buildWorld, animateWorld } from '../engine/world.js';
+import { createExtras } from '../engine/extras.js';
 import { createActor, dirFromVector, WALK_SPEED, RUN_SPEED, TURN_SECONDS } from '../engine/actors.js';
 import { createLighting } from '../engine/lighting.js';
 import { createParticles } from '../engine/particles.js';
@@ -33,11 +37,12 @@ import { composeHost, routePresses } from '../ui/host.js';
 import { loadSettings, saveSettings, adjustSetting } from '../ui/settings.js';
 import { markersFor, talkTarget } from '../ui/markers.js';
 import { t } from '../ui/strings.js';
-import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer } from './rules.js';
+import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer, enteredDoor } from './rules.js';
 
 const LOOK_RANGE = 3; // characters turn to face the player this close
 const MARKER_HEIGHT = 1.9; // world units above a person's feet for "!" / "…"
 const EXAMINE_HEIGHT = 1.2; // above an examinable's spot
+const DOOR_FADE = 0.25; // seconds each way through a door
 
 export async function startGame(container, content) {
   const { level, cast, chapter, glossary, notes, hints, letter } = content;
@@ -88,8 +93,35 @@ export async function startGame(container, content) {
     actors.set(c.id, a);
     return { id: c.id, actor: a, home, dir: c.dir ?? 'down', onstage: c.homeSpot != null };
   });
-  const examinables = (level.examinables ?? []).map((e) => ({ id: e.id, at: world.spots[e.spot] }));
+  const examinables = [...(level.examinables ?? []), ...world.locked].map((e) => ({ id: e.id, at: world.spots[e.spot] }));
+  const extraActors = [];
+  const extras = createExtras(world.extras, {
+    spots: world.spots,
+    collision: world.collision,
+    spawn: ({ id, costume, position, dir }) => {
+      const a = createActor({ id, costume, position, dir });
+      scene.add(a.object);
+      extraActors.push(a);
+      return a;
+    },
+  });
   cam.follow(player.object, { snap: true });
+
+  let game = null; // the session in play: { ctx, codes, ui, director, zone, offSave }
+  let crossing = false; // a door's fade is under way
+
+  // ---- Maps ------------------------------------------------------------------------------------
+  let currentMap = null;
+  // Draw only one map, frame it with its camera, and show its name on the place card.
+  function showMap(id) {
+    if (id == null || id === currentMap || !world.maps[id]) return;
+    currentMap = id;
+    const map = world.maps[id];
+    for (const m of Object.values(world.maps)) m.group.visible = m.id === id;
+    cam.useMap(map.camera, map.bounds);
+    game?.ui.setPlace({ name: map.name, detail: map.detail });
+  }
+  showMap(world.mapAt(world.spawn));
 
   const fader = createFader(container);
   const audio = createAudio();
@@ -120,7 +152,7 @@ export async function startGame(container, content) {
     const key = `${zone}|${time}`;
     if (key === ambienceKey || !audio.unlocked) return;
     ambienceKey = key;
-    const levels = ambienceFor(zone, time, level.indoorZones ?? []);
+    const levels = ambienceFor(zone, time, level.indoorZones ?? [], level.ambience ?? {});
     for (const name of LAYERS) audio.setLayer(name, levels[name] ?? 0);
   }
   applyAudio();
@@ -132,7 +164,6 @@ export async function startGame(container, content) {
   window.addEventListener('keydown', unlockAudio, { once: true });
 
   // ---- Game sessions --------------------------------------------------------------------------
-  let game = null; // { ctx, codes, ui, director, zone, offSave }
   const fps = createFpsMonitor(); // spec §7: suggest Low after 5 s under 30 fps on High
 
   // A failed dialogue or cutscene: log it, fade back in (it may have faded out) and play on.
@@ -171,9 +202,35 @@ export async function startGame(container, content) {
       n.actor.face(n.dir);
       n.actor.emote(null);
     }
-    cam.setDistance(CAMERA_DEFAULTS.distance);
+    currentMap = null;
+    showMap(world.mapAt(world.spawn));
     cam.follow(player.object, { snap: true });
+    crossing = false;
     fader.fadeIn(0);
+  }
+
+  // Through a door: fade out, arrive on the other map at its spot, fade back in (spec §3.3).
+  function crossDoor(door) {
+    const to = world.spots[door.to];
+    if (!to) {
+      reportError(new Error(`Door '${door.id}': spot '${door.to}' not found`));
+      return;
+    }
+    crossing = true;
+    player.setMotion(0, 0);
+    if (door.sound) audio.play(door.sound, 0.7);
+    fader.fadeOut(DOOR_FADE)
+      .then(() => {
+        player.object.position.copy(to);
+        player.face(door.face ?? 'down');
+        showMap(world.mapAt(to));
+        cam.follow(player.object, { snap: true });
+        return fader.fadeIn(DOOR_FADE);
+      })
+      .catch(reportError)
+      .finally(() => {
+        crossing = false;
+      });
   }
 
   function onAction(action) {
@@ -202,6 +259,8 @@ export async function startGame(container, content) {
     dressPlayer(state.title === 'Doña' ? 'player_dona' : 'player_don');
     input.clear();
     game = { ctx, codes, ui, director, zone: null, offSave };
+    const map = world.maps[currentMap];
+    if (map) ui.setPlace({ name: map.name, detail: map.detail });
     fader.fadeOut(0);
     fader.fadeIn(1);
     director.start(beatId).catch(reportError);
@@ -230,6 +289,7 @@ export async function startGame(container, content) {
     return [
       ...npcs.filter((n) => n.actor.object.visible).map((n) => ({ id: n.id, x: n.actor.position.x, y: n.actor.position.y, z: n.actor.position.z, height: MARKER_HEIGHT })),
       ...examinables.map((e) => ({ id: e.id, x: e.at.x, y: e.at.y, z: e.at.z, height: EXAMINE_HEIGHT })),
+      ...[...extras.actors].map(([id, a]) => ({ id, x: a.position.x, y: a.position.y, z: a.position.z, height: MARKER_HEIGHT })),
     ];
   }
 
@@ -273,25 +333,25 @@ export async function startGame(container, content) {
       });
     }
 
-    const playing = inPlay(game);
+    const playing = inPlay(game, crossing);
     const m = playing ? input.move() : { x: 0, z: 0, run: false };
     // A seated player who moves first steps clear of the chair.
     if (player.seated && (m.x || m.z)) stage.run(['stand', 'player']);
     const speed = (m.run ? RUN_SPEED : WALK_SPEED) * dt;
+    const before = player.object.position.clone();
     const next = world.collision.move(player.object.position, m.x * speed, m.z * speed);
     player.object.position.set(next.x, next.y, next.z);
     player.setMotion(m.x, m.z, m.run);
+    if (playing) {
+      const door = enteredDoor(world, before, player.position);
+      if (door) crossDoor(door);
+    }
+    // Whichever map the player is on is the one drawn (a scene's teleport may have moved them).
+    if (!crossing) showMap(world.mapAt(player.position));
     touch?.setVisible(game != null);
     touch?.setPlaying(playing);
 
     const zone = world.collision.zonesAt(player.position.x, player.position.z, player.position.y)[0] ?? null;
-    // Dollhouse cutaway: downstairs inside, hide the storey above (and the people up there).
-    const cut = world.cutaway != null && world.cutaway.zones.includes(zone);
-    world.upper.visible = !cut;
-    for (const n of npcs) {
-      const hide = cut && n.actor.position.y >= world.cutaway.y - 0.01;
-      for (const child of n.actor.object.children) child.visible = !hide;
-    }
     if (game) {
       if (zone !== game.zone) {
         game.zone = zone;
@@ -304,6 +364,7 @@ export async function startGame(container, content) {
     }
     applyAmbience(zone, game?.ui.time ?? 'dusk');
     stage.update(dt);
+    extras.update(dt);
 
     for (const n of npcs) {
       const a = n.actor;
@@ -323,7 +384,7 @@ export async function startGame(container, content) {
     particles.update(dt, player.position, preset, { outdoors: !(level.indoorZones ?? []).includes(zone) });
     animateWorld(world, time);
     for (const a of actors.values()) a.update(dt, cam.camera);
-    cam.updateOccluders(world.occluders, player.position, dt);
+    for (const a of extraActors) a.update(dt, cam.camera);
     view.render(scene, cam.camera);
     requestAnimationFrame(frame);
   }
