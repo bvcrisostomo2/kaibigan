@@ -1,47 +1,14 @@
 // Low-poly props built from boxes with pixel textures (spec §4.1).
 // Every factory returns { object, footprint: { w, d } | null, lights: [LightSource] }.
 // A LightSource is { offset: [x, y, z], color, intensity, distance, flicker } relative to the prop.
+// The house's furnishings and the street's things live in furnishings.js (Plan 5a).
 import * as THREE from 'three';
-import { tileTexture, toTexture } from './threeTextures.js';
+import { toTexture } from './threeTextures.js';
 import { PixelCanvas, rng, shade } from './pixel.js';
+import { material, tiledBox, at, emissiveBox, WARM } from './meshes.js';
+import { FURNISHINGS } from './furnishings.js';
 
-const matCache = new Map();
-
-// Lambert material with a tiled texture or flat colour; cached so props share materials.
-export function material(texOrColor, extra = {}) {
-  const key = texOrColor + JSON.stringify(extra);
-  if (!matCache.has(key)) {
-    const opts = texOrColor.startsWith('#') ? { color: texOrColor } : { map: tileTexture(texOrColor) };
-    matCache.set(key, new THREE.MeshLambertMaterial({ ...opts, ...extra }));
-  }
-  return matCache.get(key);
-}
-
-// A box whose texture tiles once per world unit on every face (instead of stretching).
-export function tiledBox(w, h, d, mat) {
-  const geo = new THREE.BoxGeometry(w, h, d);
-  const uv = geo.attributes.uv;
-  // Face order: +x, -x, +y, -y, +z, -z (4 vertices each).
-  const sizes = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
-  for (let f = 0; f < 6; f++) {
-    for (let v = 0; v < 4; v++) {
-      const i = f * 4 + v;
-      uv.setXY(i, uv.getX(i) * sizes[f][0], uv.getY(i) * sizes[f][1]);
-    }
-  }
-  uv.needsUpdate = true;
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
-function at(mesh, x, y, z) {
-  mesh.position.set(x, y, z);
-  return mesh;
-}
-
-const WARM = '#ffb35c';
+export { material, tiledBox };
 
 function table({ w = 3, d = 1.2, cloth = true }) {
   const g = new THREE.Group();
@@ -76,11 +43,6 @@ function sofa({ w = 2 }) {
   g.add(at(tiledBox(0.15, 0.55, 0.8, material('wood')), -w / 2, 0.3, 0));
   g.add(at(tiledBox(0.15, 0.55, 0.8, material('wood')), w / 2, 0.3, 0));
   return { object: g, footprint: { w, d: 0.8 }, lights: [] };
-}
-
-function emissiveBox(w, h, d, color, intensity = 1.6) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity) }));
-  return m;
 }
 
 function chandelier() {
@@ -186,7 +148,7 @@ function door({ w = 1.2, h = 2.4 }) {
   return { object: at(tiledBox(w, h, 0.12, material('wood')), 0, h / 2, 0), footprint: null, lights: [] };
 }
 
-export const PROPS = { table, chair, piano, sofa, chandelier, candles, lantern, wallLantern, painting, mirror, plant, crate, barrel, bench, cabinet, door };
+export const PROPS = { table, chair, piano, sofa, chandelier, candles, lantern, wallLantern, painting, mirror, plant, crate, barrel, bench, cabinet, door, ...FURNISHINGS };
 
 // Build a prop by type. `rot` is in quarter turns (0–3); footprints rotate with it.
 export function makeProp(type, opts = {}) {
