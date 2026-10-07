@@ -130,6 +130,18 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
         }
       });
 
+    // A target → dialogue map, as in a beat or chapter-wide.
+    const checkInteractions = (map, where) => {
+      for (const [target, entry] of Object.entries(map ?? {})) {
+        for (const e of Array.isArray(entry) ? entry : [entry]) {
+          const dlg = typeof e === 'string' ? e : e.dialogue;
+          if (!dialogueIds.has(dlg)) errors.push(`${where}.interactions.${target}: dialogue '${dlg}' not found`);
+          if (typeof e !== 'string') checkCondition(e.if, `${where}.interactions.${target}`);
+        }
+      }
+    };
+    checkInteractions(ch.interactions, `chapter ${ch.number}`);
+
     // A cutscene is a named list of host actions (no dialogues, branches or nested cutscenes).
     for (const [id, list] of Object.entries(ch.cutscenes ?? {})) {
       const where = `cutscene '${id}'`;
@@ -146,13 +158,7 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
       if (b.location != null && !Object.hasOwn(ch.locations ?? {}, b.location)) errors.push(`${where}: location '${b.location}' not found`);
       if (b.trigger) checkTrigger(b.trigger, `${where}.trigger`);
       if (b.actions) checkActions(b.actions, `${where}.actions`);
-      for (const [target, entry] of Object.entries(b.interactions ?? {})) {
-        for (const e of Array.isArray(entry) ? entry : [entry]) {
-          const dlg = typeof e === 'string' ? e : e.dialogue;
-          if (!dialogueIds.has(dlg)) errors.push(`${where}.interactions.${target}: dialogue '${dlg}' not found`);
-          if (typeof e !== 'string') checkCondition(e.if, `${where}.interactions.${target}`);
-        }
-      }
+      checkInteractions(b.interactions, where);
       if (b.checkpoint != null) {
         if (checkpoints.has(b.checkpoint)) errors.push(`${where}: checkpoint ${b.checkpoint} already used by '${checkpoints.get(b.checkpoint)}'`);
         checkpoints.set(b.checkpoint, b.id);

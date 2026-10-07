@@ -69,6 +69,12 @@ describe('validateContent', () => {
     expect(errorsFor((ch) => { ch.titleCards = { 1: { title: 'I', subtitle: 'One' } }; })).toContain("beat 'dinner'.actions[0]: title card '2' not found");
   });
 
+  it('checks chapter-wide interactions like a beat\'s, and accepts the sfx action', () => {
+    expect(errorsFor((ch) => { ch.interactions = { cook: 'greet' }; })).toEqual([]);
+    expect(errorsFor((ch) => { ch.interactions = { cook: 'nope' }; })).toContain("chapter 1.interactions.cook: dialogue 'nope' not found");
+    expect(errorsFor((ch) => { ch.beats[0].actions.push(['sfx', 'plate']); })).toEqual([]);
+  });
+
   it('checks seating actions and counted conditions', () => {
     expect(errorsFor((ch) => { ch.beats[1].actions.push(['sit', 'damaso', 'table', 'down'], ['stand', 'damaso']); })).toEqual([]);
     expect(errorsFor((ch) => { ch.beats[1].actions.push(['sit', 'ghost', 'table', 'down']); })).toContain("beat 'dinner'.actions[3]: actor 'ghost' not found");

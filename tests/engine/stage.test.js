@@ -124,6 +124,14 @@ describe('createStage', () => {
     expect(actors.get('tiago').position.toArray()).toEqual([3, 0, 3]);
   });
 
+  it('plays a one-shot sound effect', async () => {
+    const { stage, audio } = setup();
+    audio.play = vi.fn();
+    await stage.run(['sfx', 'plate']);
+    await stage.run(['sfx', 'glasses', 0.5]);
+    expect(audio.play.mock.calls).toEqual([['plate', 1], ['glasses', 0.5]]);
+  });
+
   it('waits for the given seconds', async () => {
     const { stage } = setup();
     let done = false;
