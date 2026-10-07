@@ -176,7 +176,9 @@ export function buildWorld(level) {
       prop.object.position.set(p.x, y, p.z);
       g.add(prop.object);
       if (prop.footprint && p.collide !== false) {
-        blockers.push({ x: p.x - prop.footprint.w / 2, z: p.z - prop.footprint.d / 2, w: prop.footprint.w, d: prop.footprint.d, y0: y, y1: y + 2 });
+        // Solid from the floor under it, even when it stands raised on a dais.
+        const floorY = collision.heightAt(p.x, p.z, p.floorY ?? 0) ?? y;
+        blockers.push({ x: p.x - prop.footprint.w / 2, z: p.z - prop.footprint.d / 2, w: prop.footprint.w, d: prop.footprint.d, y0: Math.min(y, floorY), y1: y + 2 });
       }
       for (const l of prop.lights) lightSources.push({ ...l, map: id, position: [p.x + l.offset[0], y + l.offset[1], p.z + l.offset[2]] });
     }
@@ -186,7 +188,9 @@ export function buildWorld(level) {
     }
 
     if (map.backdrop) g.add(buildBackdrop(moved(map.backdrop, off), map.backdrop, off));
-    g.add(buildBase(b, map.camera ?? 'indoor'));
+    const lowest = Math.min(0, ...(map.floors ?? []).map((f) => f.y - (f.thick ?? 0.25)), ...(map.stairs ?? []).map((s) => Math.min(s.y0, s.y1)), ...(map.water ?? []).map((w) => w.y));
+    g.add(buildBase(b, map.camera ?? 'indoor', lowest - 0.1));
+    if (level.maps) for (const c of buildCurtains(b, !map.backdrop && !(map.water ?? []).length)) g.add(c);
 
     for (const [name, s] of Object.entries(map.spots ?? {})) spotList.push([name, [s[0] + off[0], s[1] + off[1], s[2]]]);
     for (const e of map.extras ?? []) extras.push({ ...e, map: id });
@@ -259,14 +263,38 @@ function buildBackdrop(at, spec, off) {
 // A dark ground under a map, reaching past its sides and open front (never north, where water or
 // the backdrop lie), so the camera never sees empty sky below the edge of a room or street.
 export const BASE_REACH = 30;
-function buildBase(b, kind) {
+// y is below the map's lowest floor, stair and water, so none of them is ever hidden under it.
+function buildBase(b, kind, y) {
   const w = b.w + BASE_REACH * 2;
   const d = b.d + BASE_REACH;
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color: kind === 'outdoor' ? '#1f1b18' : '#120d0a' }));
   mesh.rotation.x = -Math.PI / 2;
-  mesh.position.set(b.x + b.w / 2, -0.08, b.z + d / 2);
+  mesh.position.set(b.x + b.w / 2, y, b.z + d / 2);
   mesh.userData.base = true;
   return mesh;
+}
+
+// Tall dark walls just outside a map's sides (and behind a room with no view), so however wide the
+// camera sees there is never a patch of sky past the map. A map with a backdrop or water keeps its
+// north open for them.
+export const CURTAIN_HEIGHT = 44;
+function buildCurtains(b, closeNorth) {
+  const dark = new THREE.MeshBasicMaterial({ color: '#0b0908', side: THREE.DoubleSide });
+  const z0 = b.z - 4;
+  const depth = b.d + BASE_REACH + 4;
+  const make = (kind, w, x, z, ry) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, CURTAIN_HEIGHT), dark);
+    m.position.set(x, CURTAIN_HEIGHT / 2 - 6, z);
+    m.rotation.y = ry;
+    m.userData.curtain = kind;
+    return m;
+  };
+  const out = [
+    make('west', depth, b.x - 0.6, z0 + depth / 2, Math.PI / 2),
+    make('east', depth, b.x + b.w + 0.6, z0 + depth / 2, Math.PI / 2),
+  ];
+  if (closeNorth) out.push(make('north', b.w + BASE_REACH * 2, b.x + b.w / 2, b.z - 0.6, 0));
+  return out;
 }
 
 // Per-frame world animation (water drift).

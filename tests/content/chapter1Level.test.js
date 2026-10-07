@@ -8,6 +8,7 @@ import { COSTUMES } from '../../src/art/costumes.js';
 import { createStage } from '../../src/engine/stage.js';
 import { WALK_SPEED } from '../../src/engine/actors.js';
 import { chapter1Beats } from '../../src/content/chapter1/beats.js';
+import * as THREE from 'three';
 
 describe('Chapter 1 level: six maps joined by doors', () => {
   const world = buildWorld(chapter1Level);
@@ -78,12 +79,12 @@ describe('Chapter 1 level: six maps joined by doors', () => {
   });
 
   it('walks the upper floor: caída to sala, the oratorio door, the azotea, the kusina door and back down the stairs', () => {
-    const across = walk('caida_from_stairs', [['x', X('upper', 8)]]);
-    expect(across.visited).toEqual(['sala']);
+    const across = walk('caida_from_stairs', [['z', Z('upper', 3)], ['x', X('upper', 8)]]); // along the aisle behind the north chairs, through the doorway
+    expect(across.visited).toEqual(['caida', 'sala']);
     expect(walk('sala_spawn', [['x', X('upper', 9.1)], ['z', Z('upper', 0.3)]]).door).toBe('oratorio_door');
     expect(walk('tiago_table', [['z', Z('upper', -2)]]).visited).toEqual(['azotea']);
-    expect(walk('caida_from_kusina', [['z', Z('upper', 0.2)]]).door).toBe('kusina_door');
-    const down = walk('caida_from_stairs', [['z', Z('upper', 9.8)]]);
+    expect(walk('caida_from_kusina', [['x', X('upper', 29.1)], ['z', Z('upper', 0.2)]]).door).toBe('kusina_door');
+    const down = walk('caida_from_stairs', [['x', X('upper', 28.5)], ['z', Z('upper', 9.8)]]);
     expect(down.door).toBe('stairs_down');
     expect(down.pos.y).toBeLessThan(-1.5);
   });
@@ -100,6 +101,55 @@ describe('Chapter 1 level: six maps joined by doors', () => {
     expect(bridge.pos.y).toBeCloseTo(0.2);
     expect(bridge.pos.z).toBeGreaterThan(Z('riverbank', 3.9)); // the far end is broken
     expect(walk('landing_from_lane', [['z', Z('riverbank', 13.9)]]).door).toBe('lane_south');
+  });
+
+  it("lays each map's dark ground below its floors, stairs and water, so nothing is hidden under it", () => {
+    for (const [id, m] of Object.entries(world.maps)) {
+      const base = m.group.children.find((c) => c.userData.base);
+      const top = new THREE.Box3().setFromObject(base).max.y;
+      const map = maps[id];
+      const lowest = Math.min(...(map.floors ?? []).map((f) => f.y - (f.thick ?? 0.25)), ...(map.stairs ?? []).map((s) => Math.min(s.y0, s.y1)), ...(map.water ?? []).map((w) => w.y));
+      expect(top, id).toBeLessThan(lowest);
+    }
+  });
+
+  it('walls every map in with dark curtains at its sides, and the rooms at their back, so no sky shows past them', () => {
+    for (const [id, m] of Object.entries(world.maps)) {
+      const sides = m.group.children.filter((c) => c.userData.curtain).map((c) => c.userData.curtain);
+      expect(sides, id).toEqual(expect.arrayContaining(['west', 'east']));
+      const roomWithNoView = !maps[id].backdrop && !(maps[id].water ?? []).length;
+      expect(sides.includes('north'), id).toBe(roomWithNoView);
+    }
+    expect(['ground', 'kusina', 'oratorio'].every((id) => world.maps[id].group.children.some((c) => c.userData.curtain === 'north'))).toBe(true);
+  });
+
+  it('is solid where the piano stands on its dais', () => {
+    const piano = maps.upper.props.find((p) => p.type === 'piano');
+    const x = piano.x + maps.upper.offset[0];
+    expect(col.blocked(x, piano.z, 0)).toBe(true);
+    expect(col.canStand(x, piano.z, 0)).toBe(false);
+  });
+
+  it('never carries the player through a second door when they arrive and keep walking', () => {
+    for (const d of world.doors) {
+      const to = world.spots[d.to];
+      const departed = d.map;
+      for (const [dx, dz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+        let pos = { x: to.x, y: to.y, z: to.z };
+        const seen = new Set();
+        for (let i = 0; i < 60; i++) {
+          const before = world.doorAt(pos);
+          pos = col.move(pos, dx * 0.1, dz * 0.1);
+          const now = world.doorAt(pos);
+          if (now && now !== before) seen.add(now.id);
+        }
+        // the only door allowed is the one straight back where they came from
+        for (const id of seen) {
+          const back = world.doors.find((x) => x.id === id);
+          expect(world.mapAt(world.spots[back.to]), `${d.id} then ${dx},${dz} reached ${id}`).toBe(departed);
+        }
+      }
+    }
   });
 
   it('stands every spot on a floor, apart from the seats, the seated extras and the boatman on his banca', () => {

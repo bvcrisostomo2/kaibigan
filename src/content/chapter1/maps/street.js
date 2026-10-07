@@ -44,6 +44,7 @@ export const street = {
     { x: 0, z: 13.6, w: 44, d: 0.3, y: 0, h: 0.7, tex: 'adobe' }, // a low wall along the near pavement
     { x: 34.6, z: -2, w: 0.4, d: FRONT + 2, y: 0, h: 2.2, tex: 'adobe' }, // the lane's walls
     { x: 38.6, z: -2, w: 0.4, d: 2, y: 0, h: 2.2, tex: 'adobe' },
+    { x: 34.6, z: -2.9, w: 4.4, d: 0.4, y: 0, h: 2.4, tex: 'wood', collide: false }, // the gate at the lane's end
   ],
   windows: [...tiago.windows, ...westHouse.windows, ...shop.windows, ...eastHouse.windows],
   roofs: [tiago.roof, westHouse.roof, shop.roof, eastHouse.roof],

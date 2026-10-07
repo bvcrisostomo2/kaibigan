@@ -76,7 +76,7 @@ export const chapter1Beats = [
       ['setTime', 'dusk'], ['hide', 'isabel'], ['fadeOut', 0.3], ['teleport', 'player', 'sala_spawn'], ['face', 'player', 'left'], ['fadeIn', 0.3],
       ['dialogue', 'k1_argument'],
       // Guevarra walks away to the window; the Espadañas come in from the caída.
-      ['moveTo', 'guevarra', 'guevarra_window'], ['face', 'guevarra', 'down'],
+      ['moveTo', 'guevarra', 'guevarra_via'], ['moveTo', 'guevarra', 'guevarra_window'], ['face', 'guevarra', 'down'],
       ['teleport', 'victorina', 'sala_door'], ['teleport', 'tiburcio', 'sala_door'], ['show', 'victorina'], ['show', 'tiburcio'],
       ['moveTo', 'victorina', 'victorina_spot'], ['moveTo', 'tiburcio', 'tiburcio_spot'], ['face', 'victorina', 'down'], ['face', 'tiburcio', 'down'],
       ['dialogue', 'k1_espadanas'],
@@ -92,14 +92,14 @@ export const chapter1Beats = [
     spawn: 'sala_spawn',
     trigger: { countAtLeast: { n: 3, flags: GUESTS_MET }, or: { afterSec: 120 } },
     actions: [
-      ['setTime', 'evening'], ['hide', 'isabel'], ['fadeOut', 0.3],
+      ['setTime', 'evening'], ['hide', 'isabel'], ['hide', 'servant'], ['fadeOut', 0.3],
       ['teleport', 'guevarra', 'guevarra_window'], ['teleport', 'victorina', 'victorina_spot'], ['teleport', 'tiburcio', 'tiburcio_spot'], ['show', 'victorina'], ['show', 'tiburcio'],
       ['teleport', 'player', 'sala_spawn'], ['face', 'player', 'right'],
       ['teleport', 'tiago', 'sala_door'], ['teleport', 'ibarra', 'sala_door'], ['show', 'tiago'], ['show', 'ibarra'],
       ['fadeIn', 0.3], ['titleCard', 2],
       ['moveTo', 'tiago', 'tiago_spot'], ['moveTo', 'ibarra', 'ibarra_spot'], ['face', 'ibarra', 'player'], ['face', 'player', 'ibarra'], ['face', 'tiago', 'left'],
       ['dialogue', 'k2_entrance'],
-      ['moveTo', 'servant', 'sala_entry'], ['face', 'servant', 'down'],
+      ['teleport', 'servant', 'sala_door'], ['show', 'servant'], ['moveTo', 'servant', 'sala_entry'], ['face', 'servant', 'down'],
       ['dialogue', 'k2_dinner_call'],
       // The guests file out to the table; the player follows on foot.
       ['fadeOut', 0.4], ['cutscene', 'seat_guests'], ['fadeIn', 0.4],
