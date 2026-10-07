@@ -133,6 +133,18 @@ describe('createGameUi: a chapter played through the UI', () => {
     expect(ui.time).toBe('evening');
   });
 
+  it("shows the map's place over the beat's location, and falls back when there is none", async () => {
+    const { ui, views, director } = setup();
+    director.start();
+    await flush();
+    ui.setPlace({ name: 'Casa de Capitan Tiago', detail: 'Zaguán' });
+    expect(views.hud.vm).toMatchObject({ place: 'Casa de Capitan Tiago', detail: 'Zaguán' });
+    ui.setPlace(null);
+    expect(views.hud.vm.detail).toBe('Binondo · 1880s');
+    ui.setPlace({ name: null, detail: null }); // a map with no name (the sandbox)
+    expect(views.hud.vm.detail).toBe('Binondo · 1880s');
+  });
+
   it('updates the HUD location on beat entry and the time from setTime', async () => {
     const { views, ui, director } = setup();
     director.start();
