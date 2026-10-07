@@ -1,208 +1,65 @@
-// Chapter 1's level (spec §3.3): Capitan Tiago's bahay na bato on Calle Anloague, backing onto a
-// creek of the Pasig. North is up (the camera looks north); 1 unit = 1 tile.
-//   Ground floor (y 0): the stone zaguán, with the stairs at the east end climbing north.
-//   Upper floor (y UP): the caída at the back (the stair head; tonight the dining room, as in
-//   Rizal's Chapter I, with arches onto the azotea over the river) and the sala at the front.
-//   Calle Anloague runs along the south side; a lane east of the house leads north to the
-//   riverbank and the one wooden bridge.
-// Plan 2's stair rule holds: no floor at the stair's base or top height overlaps its footprint
-// (buildWorld throws otherwise), so the zaguán and upper floors are split around it.
-const UP = 3.5; // upper floor height
-const W = 52; // street length (x)
-
-// A wall run along x with gaps (doorways or arches) and a beam over each gap.
-function wallX({ x0, x1, z, d, y, h, tex, gaps = [], beam = 0.6, occluder = true }) {
-  const parts = [];
-  let x = x0;
-  for (const [g0, g1] of gaps) {
-    if (g0 > x) parts.push({ x, z, w: g0 - x, d, y, h, tex, occluder });
-    parts.push({ x: g0, z, w: g1 - g0, d, y: y + h - beam, h: beam, tex, occluder });
-    x = g1;
-  }
-  if (x1 > x) parts.push({ x, z, w: x1 - x, d, y, h, tex, occluder });
-  return parts;
-}
+// Chapter 1's level (Plan 5 spec §3.1, §3.4): six maps joined by doors, each in its own region of
+// one world. Every map looks north, so the creek is at the back (north) of every map and Calle
+// Anloague is on the camera side (south).
+//   street     Calle Anloague: the house fronts, the lane to the river
+//   riverbank  the landing, the creek, the bridge, the far bank
+//   ground     the zaguán, with the stairs up
+//   upper      the sala, the caída (the dinner), the azotea over the creek
+//   kusina     the kitchen, behind the caída
+//   oratorio   Capitan Tiago's prayer room, in the cuartos wing behind the sala
+// Spot and zone names are unique across maps. Plan 2's stair rule holds map by map.
+import { street } from './maps/street.js';
+import { riverbank } from './maps/riverbank.js';
+import { ground } from './maps/ground.js';
+import { upper } from './maps/upper.js';
+import { kusina, oratorio } from './maps/rooms.js';
 
 export const chapter1Level = {
-  floors: [
-    { x: 0, z: 22, w: W, d: 6, y: 0, tex: 'cobble' }, // Calle Anloague
-    { x: -4, z: 28.4, w: W + 8, d: 5, y: 0.15, tex: 'adobe' }, // the far pavement (decor, behind the parapet)
-    // zaguán, split around the stair (x 31–34, z 14–20)
-    { x: 8, z: 6, w: 23, d: 16, y: 0, tex: 'tiles' },
-    { x: 34, z: 6, w: 4, d: 16, y: 0, tex: 'tiles' },
-    { x: 31, z: 6, w: 3, d: 8, y: 0, tex: 'tiles' },
-    { x: 31, z: 20, w: 3, d: 2, y: 0, tex: 'tiles' }, // in front of the stair's foot
-    // upper floor, split around the stairwell
-    { x: 8, z: 6, w: 30, d: 8, y: UP, tex: 'narra', thick: 0.3 }, // caída
-    { x: 8, z: 14, w: 22, d: 8, y: UP, tex: 'narra', thick: 0.3 }, // sala
-    { x: 30, z: 14, w: 1, d: 8, y: UP, tex: 'narra', thick: 0.3 },
-    { x: 34, z: 14, w: 4, d: 8, y: UP, tex: 'narra', thick: 0.3 },
-    { x: 31, z: 20, w: 3, d: 2, y: UP, tex: 'narra', thick: 0.3 },
-    { x: 12, z: 3, w: 12, d: 3, y: UP, tex: 'tiles', thick: 0.3 }, // azotea over the river
-    { x: 44, z: 6, w: 4, d: 16, y: 0, tex: 'dirt' }, // the lane
-    { x: 38, z: 3, w: 14, d: 3, y: 0, tex: 'adobe' }, // riverbank
-    { x: 45, z: -3, w: 3, d: 6, y: 0.2, tex: 'wood', thick: 0.2 }, // the bridge (broken at its far end)
+  maps: { street, riverbank, ground, upper, kusina, oratorio },
+  // Walk into a rect (map-local tiles) to arrive at `to` on another map, facing `face`.
+  doors: [
+    { id: 'front_door', map: 'street', rect: { x: 19.2, z: 2.9, w: 1.6, d: 0.4 }, to: 'zaguan_entry', face: 'up', sound: 'door' },
+    { id: 'house_exit', map: 'ground', rect: { x: 6, z: 7.6, w: 2, d: 0.4 }, to: 'street_door', face: 'down', sound: 'door' },
+    { id: 'stairs_up', map: 'ground', rect: { x: 10.4, z: 1.4, w: 2.2, d: 0.5 }, to: 'caida_from_stairs', face: 'left', sound: 'stairs' },
+    { id: 'stairs_down', map: 'upper', rect: { x: 27.4, z: 9.3, w: 2.2, d: 0.7 }, to: 'zaguan_from_stairs', face: 'down', sound: 'stairs' },
+    { id: 'lane_north', map: 'street', rect: { x: 35, z: -2, w: 3.6, d: 0.7 }, to: 'landing_from_lane', face: 'up' },
+    { id: 'lane_south', map: 'riverbank', rect: { x: 25, z: 13.3, w: 3, d: 0.7 }, to: 'lane_from_river', face: 'down' },
+    { id: 'kusina_door', map: 'upper', rect: { x: 28.5, z: 0, w: 1.2, d: 0.5 }, to: 'kusina_entry', face: 'up', sound: 'door' },
+    { id: 'kusina_exit', map: 'kusina', rect: { x: 4, z: 6.6, w: 2, d: 0.4 }, to: 'caida_from_kusina', face: 'down', sound: 'door' },
+    { id: 'oratorio_door', map: 'upper', rect: { x: 8.5, z: 0, w: 1.2, d: 0.5 }, to: 'oratorio_entry', face: 'up', sound: 'door' },
+    { id: 'oratorio_exit', map: 'oratorio', rect: { x: 3, z: 5.6, w: 2, d: 0.4 }, to: 'sala_from_oratorio', face: 'down', sound: 'door' },
   ],
-  stairs: [{ x: 31, z: 14, w: 3, d: 6, y0: 0, y1: UP, dir: 'n', tex: 'narra' }],
-  water: [
-    { x: -6, z: -10, w: 44, d: 16, y: -0.6 }, // behind the house, up to its back wall
-    { x: 38, z: -10, w: 22, d: 13, y: -0.6 }, // past the riverbank
+  // Shut doors: Talk targets with a line (chapter-wide interactions), never passable.
+  locked: [
+    { id: 'tiago_room', spot: 'tiago_room_door' },
+    { id: 'clara_room', spot: 'clara_room_door' },
+    { id: 'pawnshop', spot: 'pawnshop_door' },
+    { id: 'neighbour_house', spot: 'neighbour_door' },
   ],
-  walls: [
-    // ground floor, stone; the front door is x 17–20
-    ...wallX({ x0: 8, x1: 38, z: 21.6, d: 0.4, y: 0, h: UP, tex: 'adobe', gaps: [[17, 20]], beam: 0.9 }),
-    { x: 8, z: 6, w: 30, d: 0.4, y: 0, h: UP, tex: 'adobe', occluder: false },
-    { x: 8, z: 6, w: 0.4, d: 16, y: 0, h: UP, tex: 'adobe' },
-    { x: 37.6, z: 6, w: 0.4, d: 16, y: 0, h: UP, tex: 'adobe' },
-    // upper floor
-    { x: 8, z: 21.7, w: 30, d: 0.3, y: UP, h: 3, tex: 'plaster' }, // street side (capiz windows on it)
-    ...wallX({ x0: 8, x1: 38, z: 6, d: 0.3, y: UP, h: 3, tex: 'plaster', gaps: [[13, 17], [19, 23]], occluder: false }), // arches to the azotea
-    { x: 8, z: 6, w: 0.3, d: 16, y: UP, h: 3, tex: 'plaster' },
-    { x: 37.7, z: 6, w: 0.3, d: 16, y: UP, h: 3, tex: 'plaster' },
-    ...wallX({ x0: 8, x1: 30, z: 13.85, d: 0.3, y: UP, h: 3, tex: 'wood', gaps: [[13, 16], [22, 25]] }), // sala | caída
-    // rails round the stairwell and the azotea
-    { x: 30.8, z: 14.6, w: 0.2, d: 5.4, y: UP, h: 0.9, tex: 'wood' },
-    { x: 34, z: 14.6, w: 0.2, d: 5.4, y: UP, h: 0.9, tex: 'wood' },
-    { x: 30.8, z: 20, w: 3.4, d: 0.2, y: UP, h: 0.9, tex: 'wood' },
-    { x: 12, z: 3, w: 12, d: 0.15, y: UP, h: 0.9, tex: 'wood', occluder: false },
-    { x: 12, z: 3, w: 0.15, d: 3, y: UP, h: 0.9, tex: 'wood', occluder: false },
-    { x: 23.85, z: 3, w: 0.15, d: 3, y: UP, h: 0.9, tex: 'wood', occluder: false },
-    // neighbouring houses (decor; they also keep the player on the street, lane and bank)
-    { x: 0, z: 6, w: 8, d: 16, y: 0, h: 6.5, tex: 'plaster' },
-    { x: 38, z: 6, w: 6, d: 16, y: 0, h: 5.5, tex: 'adobe' },
-    { x: 48, z: 6, w: 4, d: 16, y: 0, h: 6, tex: 'plaster' },
-    // street and bridge edges
-    { x: 0, z: 28, w: W, d: 0.4, y: 0, h: 0.6, tex: 'adobe', occluder: false },
-    { x: -0.4, z: 22, w: 0.4, d: 6.4, y: 0, h: 0.6, tex: 'adobe', occluder: false },
-    { x: W, z: 22, w: 0.4, d: 6.4, y: 0, h: 0.6, tex: 'adobe', occluder: false },
-    { x: 44.8, z: -3, w: 0.2, d: 6, y: 0.2, h: 0.6, tex: 'wood', occluder: false },
-    { x: 48, z: -3, w: 0.2, d: 6, y: 0.2, h: 0.6, tex: 'wood', occluder: false },
-    { x: 45, z: -3.2, w: 3, d: 0.2, y: 0.2, h: 0.5, tex: 'wood', occluder: false },
-  ],
-  roofs: [
-    { x: 7.6, z: 5.6, w: 30.8, d: 16.8, y: UP + 3, rise: 3, tex: 'roof', axis: 'x' },
-    { x: 0, z: 6, w: 8, d: 16, y: 6.5, rise: 1.6, tex: 'roof', axis: 'x' },
-    { x: 38, z: 6, w: 6, d: 16, y: 5.5, rise: 1.4, tex: 'roof', axis: 'x' },
-    { x: 48, z: 6, w: 4, d: 16, y: 6, rise: 1.4, tex: 'roof', axis: 'x' },
-  ],
-  windows: [
-    ...[11, 15.5, 20, 24.5, 29, 35.5].map((x) => ({ x, z: 22.02, y: UP + 0.8, w: 2.4, h: 1.5, facing: 's' })),
-    ...[11.5, 25, 34].map((x) => ({ x, z: 22.02, y: 1.2, w: 1.4, h: 1.2, facing: 's' })),
-  ],
-  props: [
-    // zaguán
-    { type: 'crate', x: 9.6, z: 7.4 },
-    { type: 'crate', x: 10.8, z: 7.2 },
-    { type: 'barrel', x: 9.4, z: 9 },
-    { type: 'bench', x: 13, z: 20.6, w: 2.4 },
-    { type: 'crate', x: 24, z: 7.4 },
-    { type: 'crate', x: 25.2, z: 7.4 },
-    { type: 'crate', x: 24.6, z: 8.5 },
-    { type: 'barrel', x: 15, z: 7.3 },
-    { type: 'barrel', x: 16.2, z: 7.3 },
-    { type: 'cabinet', x: 9, z: 14, rot: 1, w: 1.6 },
-    { type: 'bench', x: 27, z: 18.4, w: 2.4 },
-    { type: 'plant', x: 30.4, z: 17 }, // flower-pots flanking the stair, as in Rizal's Chapter I
-    { type: 'plant', x: 34.6, z: 17 },
-    { type: 'wallLantern', x: 16.4, z: 22.1, y: 2.2 },
-    { type: 'wallLantern', x: 20.6, z: 22.1, y: 2.2 },
-    // caída: tonight's dining room
-    { type: 'table', x: 19, z: 10, y: UP, w: 15, d: 1.4 },
-    // nine diners, nine chairs: five along the north side, three along the south, one at the head
-    ...[12.5, 15, 17.5, 20, 22.5].map((x) => ({ type: 'chair', x, z: 8.9, y: UP, rot: 0 })),
-    ...[12.5, 15, 17.5].map((x) => ({ type: 'chair', x, z: 11.1, y: UP, rot: 2 })),
-    { type: 'chair', x: 10.9, z: 10, y: UP, rot: 3 }, // the head of the table
-    { type: 'candles', x: 14, z: 10, y: UP + 0.86 },
-    { type: 'candles', x: 19, z: 10, y: UP + 0.86 },
-    { type: 'candles', x: 24, z: 10, y: UP + 0.86 },
-    { type: 'chandelier', x: 14, z: 10, y: UP + 2.6 },
-    { type: 'chandelier', x: 24, z: 10, y: UP + 2.6 },
-    { type: 'painting', x: 10.5, z: 6.35, y: UP + 1.8, seed: 11 },
-    { type: 'painting', x: 26, z: 6.35, y: UP + 1.8, seed: 12 },
-    { type: 'painting', x: 30.5, z: 6.35, y: UP + 1.8, seed: 13 },
-    { type: 'cabinet', x: 35.6, z: 7, y: UP, rot: 0, w: 1.6 },
-    // sala
-    { type: 'piano', x: 10.6, z: 15.6, y: UP },
-    { type: 'table', x: 14, z: 18.6, y: UP, w: 1.6, d: 1.2 },
-    { type: 'sofa', x: 24.2, z: 20.9, y: UP, w: 2.4 },
-    { type: 'sofa', x: 17, z: 20.9, y: UP, w: 2.2 },
-    { type: 'chair', x: 21, z: 16, y: UP, rot: 2 },
-    { type: 'painting', x: 10.5, z: 14.2, y: UP + 1.8, seed: 7 }, // the portrait of the master of the house
-    { type: 'mirror', x: 18.5, z: 14.2, y: UP + 1.7 },
-    { type: 'mirror', x: 27, z: 14.2, y: UP + 1.7 },
-    { type: 'chandelier', x: 14, z: 18, y: UP + 2.6 },
-    { type: 'chandelier', x: 24, z: 18, y: UP + 2.6 },
-    { type: 'plant', x: 29.2, z: 21, y: UP },
-    // azotea
-    { type: 'plant', x: 12.8, z: 3.6, y: UP },
-    { type: 'plant', x: 23.2, z: 3.6, y: UP },
-    { type: 'lantern', x: 18, z: 3.5, y: UP },
-    // street, lane and riverbank
-    ...[4, 14, 24, 41].map((x) => ({ type: 'lantern', x, z: 22.5, rot: 0 })),
-    { type: 'lantern', x: 44.5, z: 14, rot: 1 },
-    { type: 'bench', x: 41, z: 4.6, w: 2.2 },
-    { type: 'barrel', x: 50.5, z: 4.4 },
-    { type: 'crate', x: 51.2, z: 5.2 },
-  ],
-  zones: {
-    calle: { x: 0, z: 22, w: W, d: 6 },
-    zaguan: { x: 8, z: 6, w: 30, d: 16, y0: -1, y1: 1.5 },
-    caida: { x: 8, z: 6, w: 30, d: 8, y0: 2, y1: 6.5 },
-    sala: { x: 8, z: 14, w: 22, d: 8, y0: 2, y1: 6.5 },
-    azotea: { x: 12, z: 3, w: 12, d: 3, y0: 2, y1: 6.5 },
-    lane: { x: 44, z: 6, w: 4, d: 16 },
-    riverbank: { x: 38, z: -3, w: 14, d: 9 },
-  },
-  indoorZones: ['zaguan', 'caida', 'sala'],
-  // Downstairs in the zaguán the upper storey (and anyone up there) is hidden, dollhouse style.
-  cutaway: { y: UP, zones: ['zaguan'] },
-  spots: {
-    street_spawn: [18.5, 25],
-    front_door: [18.5, 21],
-    stair_foot: [32.5, 20.8],
-    stair_view: [30.2, 18.4],
-    isabel_stairhead: [33.4, 12.6, UP],
-    caida_spawn: [32.5, 12.8, UP],
-    sala_entry: [23.5, 15.2, UP],
-    sala_spawn: [18.5, 16.4, UP],
-    // the sala: Dámaso's group round the small table, the late arrivals by the sofas
-    damaso_spot: [13, 17.6, UP],
-    sibyla_spot: [15, 17.6, UP],
-    guevarra_spot: [14, 19.7, UP],
-    laruja_spot: [12.3, 18.9, UP],
-    newcomer_spot: [15.7, 19, UP],
-    guevarra_window: [20.5, 21.2, UP],
-    victorina_spot: [23.4, 19.6, UP],
-    tiburcio_spot: [25, 19.6, UP],
-    // Kabanata II: in from the caída through the east doorway
-    sala_door: [23.5, 13.2, UP],
-    tiago_spot: [21.9, 17.2, UP],
-    ibarra_spot: [20.2, 17.4, UP],
-    servant_spot: [27.5, 8.4, UP],
-    tiago_portrait: [12.6, 14.9, UP],
-    // Kabanata III: the caída's table. Seats are chair centres (inside the chair's blocker;
-    // ['stand', id] steps clear). North side faces down the table toward the camera.
-    seat_head: [10.9, 10, UP],
-    seat_damaso: [12.5, 8.9, UP],
-    seat_ibarra: [15, 8.9, UP],
-    seat_player: [17.5, 8.9, UP],
-    seat_guevarra: [20, 8.9, UP],
-    seat_laruja: [22.5, 8.9, UP],
-    seat_newcomer: [12.5, 11.1, UP],
-    seat_victorina: [15, 11.1, UP],
-    seat_tiburcio: [17.5, 11.1, UP],
-    tiago_table: [16.3, 7.9, UP],
-    // Ibarra's way out: behind the north chairs, then east along the caída to the stairs
-    ibarra_exit_1: [15, 7.4, UP],
-    ibarra_exit_2: [27.5, 7.4, UP],
-    lane_guevarra: [46, 15],
-    river_ibarra: [46.5, 4.3],
-    bridge_end: [46.5, 1.2],
-  },
+  // Things Talk can examine.
   examinables: [
     { id: 'staircase', spot: 'stair_view' },
     { id: 'bridge', spot: 'bridge_end' },
     { id: 'tiago_portrait', spot: 'tiago_portrait' },
+    { id: 'altar', spot: 'altar_view' },
   ],
-  spawn: [18.5, 25],
+  indoorZones: ['zaguan', 'caida', 'sala', 'kusina', 'oratorio'],
+  // Layer levels per zone (boot/rules.js ambienceFor): the party's murmur and the orchestra louder
+  // near the crowd, the kitchen's sizzle in the kusina, the creek loudest on its banks.
+  ambience: {
+    sala: { chatter: 0.3, strings: 0.18 },
+    caida: { chatter: 0.3, strings: 0.35, kitchen: 0.04 },
+    azotea: { chatter: 0.15, strings: 0.18, river: 0.5 },
+    zaguan: { chatter: 0.1, strings: 0.06 },
+    kusina: { chatter: 0.08, kitchen: 0.45 },
+    oratorio: { chatter: 0.05, music: 0.15 },
+    riverbank: { river: 0.65 },
+  },
+  spawn: 'street_spawn',
 };
+
+// Every spot and zone name across the maps (for the content validator).
+export const levelNames = (level) => ({
+  spots: Object.values(level.maps).flatMap((m) => Object.keys(m.spots ?? {})),
+  zones: Object.values(level.maps).flatMap((m) => Object.keys(m.zones ?? {})),
+});

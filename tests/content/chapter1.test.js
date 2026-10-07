@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { chapter1, chapter1Content } from '../../src/content/chapter1/index.js';
+import { levelNames } from '../../src/content/chapter1/level.js';
 import { validateContent } from '../../src/story/validate.js';
 import { createState } from '../../src/story/state.js';
 import { trackCheckpointCodes, decodeCode, codeLength, stateFromCode } from '../../src/story/saveCode.js';
@@ -16,7 +17,7 @@ describe('Chapter 1 content', () => {
   it('passes the content validator against its level', () => {
     const { errors } = validateContent({
       chapters: [chapter1], cast, glossary, notes, hints,
-      level: { zones: Object.keys(level.zones), spots: Object.keys(level.spots) },
+      level: levelNames(level),
     });
     expect(errors).toEqual([]);
   });
@@ -29,9 +30,12 @@ describe('Chapter 1 content', () => {
     }
   });
 
-  it('only interacts with cast members and the level’s examinables', () => {
-    const targets = new Set([...cast.map((c) => c.id), ...level.examinables.map((e) => e.id)]);
+  it('only interacts with cast members, extras, locked doors and the level’s examinables', () => {
+    const extras = Object.values(level.maps).flatMap((m) => (m.extras ?? []).map((e) => e.id));
+    const targets = new Set([...cast.map((c) => c.id), ...level.examinables.map((e) => e.id), ...level.locked.map((l) => l.id), ...extras]);
     for (const b of chapter1.beats) for (const t of Object.keys(b.interactions ?? {})) expect(targets, `${b.id}.${t}`).toContain(t);
+    for (const t of Object.keys(chapter1.interactions)) expect(targets, `chapter.${t}`).toContain(t);
+    for (const l of level.locked) expect(chapter1.interactions[l.id], l.id).toBeDefined(); // every shut door says why
   });
 
   it('has a title card, a location and a real time for every reference, and a letter', () => {
