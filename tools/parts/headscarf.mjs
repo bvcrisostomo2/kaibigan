@@ -1,0 +1,56 @@
+// A working woman's headscarf (panyo): a square of cloth over the crown, its front edge across the
+// hairline and its sides hanging past the cheeks, knotted at the nape. Worn by the cook, the vendor
+// and the washerwoman; s is the cloth (recoloured per set), p its checked weave, h its light edge,
+// d its shadow and a fold running across the crown. The side
+// view faces right: the front edge on the right, the knot and its tails at the back on the left.
+export const HEADSCARF = {
+  palette: { o: '#2a1614', s: '#8a3a2a', h: '#b0563e', d: '#5e2418', p: '#c98a5a' },
+  views: {
+    front: [{ at: [0, 0], rows: [
+      '......ooooo......',
+      '....oohssspoo....',
+      '...ohspdsspsdo...',
+      '..ohppppdppppdo..',
+      '.ohssspssdpsssdo.',
+      'ospssspsssdssspdo',
+      'osdooooooooooodso',
+      'opd...........dpo',
+      'osd...........dso',
+      '.oo...........oo.',
+    ] }],
+    right: [{ at: [0, 0], rows: [
+      '.....ooooo........',
+      '...oohdssso.......',
+      '..ohsspdsspoo.....',
+      '.ohpppppdppppoo...',
+      'ohpssspssdpssspoo.',
+      'ospssspsssdssspsdo',
+      'ospssspssspdsspsdo',
+      'oppppppddoooooooo.',
+      'ospsssdo..........',
+      'ospsssdo..........',
+      'ospssdo...........',
+      '.opddo............',
+      '.opdso............',
+      '..oso.............',
+      '...o..............',
+    ] }],
+    back: [{ at: [0, 0], rows: [
+      '......ooooo......',
+      '....oohssspoo....',
+      '...ohspdsspsdo...',
+      '..ohppppdppppdo..',
+      '.ohssspssdpsssdo.',
+      'ospssspsssdssspdo',
+      'ospssspssspdsspdo',
+      'opppppppppppdppdo',
+      'ospssspssspssdpdo',
+      '.opssspssspsssddo',
+      '..ossspssspssdoo.',
+      '.....oopddpoo....',
+      '......osddo......',
+      '......osdso......',
+      '.......oo........',
+    ] }],
+  },
+};
