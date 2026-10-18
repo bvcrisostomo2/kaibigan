@@ -187,7 +187,7 @@ export function buildWorld(level) {
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(wtr.w, wtr.d), mat);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(wtr.x + wtr.w / 2, wtr.y, wtr.z + wtr.d / 2);
-      mesh.receiveShadow = true;
+      // No cast shadows: on rippling water they'd lie as flat grey slabs (the stilt houses' did).
       animated.push({ kind: 'water', texture: tex, normal });
       g.add(mesh);
     }
