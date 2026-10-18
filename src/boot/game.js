@@ -8,10 +8,10 @@
 // and place card. Extras (background people) live through every beat.
 import * as THREE from 'three';
 import '../ui/ui.css';
-import { createRenderer, WebGLUnavailableError } from '../engine/renderer.js';
+import { createRenderer, WebGLUnavailableError, FOCUS_HEIGHT } from '../engine/renderer.js';
 import { createFollowCamera } from '../engine/camera.js';
 import { createInput, bindKeyboard } from '../engine/input.js';
-import { buildWorld, animateWorld } from '../engine/world.js';
+import { buildWorld, animateWorld, updateFades } from '../engine/world.js';
 import { createExtras } from '../engine/extras.js';
 import { createActor, dirFromVector, WALK_SPEED, RUN_SPEED, TURN_SECONDS } from '../engine/actors.js';
 import { createLighting } from '../engine/lighting.js';
@@ -29,6 +29,7 @@ import { hasFlag } from '../story/state.js';
 import { browserStorage, saveGame } from '../story/save.js';
 import { trackCheckpointCodes } from '../story/saveCode.js';
 import { h } from '../ui/dom.js';
+import { keepLandscape, rotateView } from '../ui/landscape.js';
 import { createDomViews } from '../ui/views/index.js';
 import { createTouchView, createBannerView } from '../ui/views/touchView.js';
 import { runFrontScreens } from '../ui/frontScreens.js';
@@ -134,6 +135,12 @@ export async function startGame(container, content) {
   const banner = createBannerView(uiRoot);
   const input = createInput();
   bindKeyboard(input);
+  // Phones play in landscape: locked on the first tap where the browser allows, and a rotate
+  // screen whenever one is held upright (ui/landscape.js).
+  if (device.coarsePointer) {
+    keepLandscape();
+    uiRoot.append(rotateView(h, { title: t('rotate.title'), detail: t('rotate.detail') }));
+  }
   const touch = device.coarsePointer
     ? createTouchView(uiRoot, {
       labels: { talk: t('touch.talk'), journal: t('touch.journal'), menu: t('touch.menu') },
@@ -307,11 +314,6 @@ export async function startGame(container, content) {
   }
 
   window.addEventListener('resize', () => cam.resize(view.resize().width / view.resize().height));
-  container.addEventListener('wheel', (e) => {
-    if (e.target.closest?.('.ui-page, .ui-letter, .ui-code')) return;
-    cam.zoomBy(Math.sign(e.deltaY) * 1.2);
-    e.preventDefault();
-  }, { passive: false });
 
   let last = performance.now();
   let time = 0;
@@ -362,6 +364,12 @@ export async function startGame(container, content) {
       game.ui.setMarkers(screenMarkers(targets()));
       if (fps.sample(dt) && settings.quality === 'high') game.ui.notify(t('toast.lowFps'));
     }
+    // A zone with its own view (the azotea looks out over the creek) eases the camera to it, and
+    // whatever stands between the camera and that zone fades.
+    const shown = world.maps[currentMap];
+    const framing = shown ? shown.zoneCameras[zone] ?? shown.camera : null;
+    if (framing && framing !== cam.view) cam.blendTo(framing);
+    updateFades(world, zone, dt);
     applyAmbience(zone, game?.ui.time ?? 'dusk');
     stage.update(dt);
     extras.update(dt);
@@ -381,11 +389,12 @@ export async function startGame(container, content) {
     const preset = lighting.preset;
     view.setGrade(preset.grade);
     for (const mat of world.windowMaterials) mat.emissiveIntensity = preset.windows * 0.9;
+    for (const mat of world.skyMaterials) mat.color.set(preset.background);
     particles.update(dt, player.position, preset, { outdoors: !(level.indoorZones ?? []).includes(zone) });
     animateWorld(world, time);
     for (const a of actors.values()) a.update(dt, cam.camera);
     for (const a of extraActors) a.update(dt, cam.camera);
-    view.render(scene, cam.camera);
+    view.render(scene, cam.camera, cam.subject.clone().setY(cam.subject.y + FOCUS_HEIGHT));
     requestAnimationFrame(frame);
   }
 

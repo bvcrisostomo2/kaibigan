@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { material, tiledBox, at, emissiveBox, round, ball, WARM } from './meshes.js';
 import { PixelCanvas } from './pixel.js';
-import { toTexture } from './threeTextures.js';
+import { toTexture, tileTexture } from './threeTextures.js';
 
 const DARK_WOOD = '#4a3020';
 const CLAY = '#b0603a';
@@ -387,12 +387,20 @@ function stiltHouse({ w = 3, d = 2.5, seed = 0 }) {
   const g = new THREE.Group();
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) g.add(at(tiledBox(0.12, 1.6, 0.12, material(DARK_WOOD)), sx * (w / 2 - 0.1), 0.2, sz * (d / 2 - 0.1)));
   g.add(at(tiledBox(w, 1.6, d, material(seed % 2 ? '#a08a5a' : '#8a7a50')), 0, 1.8, 0));
-  g.add(at(emissiveBox(0.5, 0.4, 0.02, '#ffb060', 1.2), (seed % 3) - 1, 1.9, d / 2 + 0.02));
+  // A capiz window in a dark frame under a little awning, lit by the time of day like the town's
+  // other windows (the world drives its glow through `windows`).
+  const wx = (seed % 3) - 1;
+  const glass = new THREE.MeshLambertMaterial({ map: tileTexture('capiz'), emissive: new THREE.Color('#ffb060'), emissiveMap: tileTexture('capiz'), emissiveIntensity: 0 });
+  g.add(at(new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.5), glass), wx, 1.95, d / 2 + 0.015));
+  for (const [fw, fh, fx, fy] of [[0.7, 0.07, 0, 0.28], [0.7, 0.07, 0, -0.28], [0.07, 0.6, -0.31, 0], [0.07, 0.6, 0.31, 0], [0.05, 0.5, 0, 0]]) {
+    g.add(at(tiledBox(fw, fh, 0.05, material(DARK_WOOD)), wx + fx, 1.95 + fy, d / 2 + 0.03));
+  }
+  g.add(at(tiledBox(0.9, 0.05, 0.25, material('#6a5a3a')), wx, 2.33, d / 2 + 0.12)); // the awning
   const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.78, 1.3, 4), material('#6a5a3a', { flatShading: true }));
   roof.rotation.y = Math.PI / 4;
   roof.position.y = 3.25;
   g.add(roof);
-  return { object: g, footprint: { w, d }, lights: [] };
+  return { object: g, footprint: { w, d }, lights: [], windows: [glass] };
 }
 
 export const FURNISHINGS = {

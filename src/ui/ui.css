@@ -209,6 +209,19 @@
 /* Dev error banner */
 .ui-banner { inset: 0 0 auto 0; background: #b3261e; color: #fff; padding: 8px 14px; font: 14px system-ui, sans-serif; pointer-events: auto; }
 
+/* Landscape on phones: a touch device held upright shows this over everything (ui/landscape.js). */
+.ui-rotate { display: none; position: fixed; inset: 0; z-index: 100; background: #0d0b12; color: var(--paper); flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center; pointer-events: auto; }
+.ui-rotate-phone { width: 44px; height: 76px; border: 3px solid var(--paper); border-radius: 8px; margin-bottom: 18px; animation: ui-rotate-turn 2.4s ease-in-out infinite; }
+.ui-rotate-title { margin: 0; font-size: 20px; }
+.ui-rotate-detail { margin: 0; font-size: 15px; opacity: 0.8; }
+@keyframes ui-rotate-turn { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+@media (orientation: portrait) and (pointer: coarse) {
+  .ui-rotate { display: flex; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-rotate-phone { animation: none; transform: rotate(-90deg); }
+}
+
 /* Phones */
 @media (max-width: 600px) {
   .ui { font-size: 15px; }

@@ -18,6 +18,8 @@ export const upper = {
   detail: 'The upper floor · Calle Anloague, Binondo',
   offset: [1200, 0],
   camera: 'indoor',
+  // Out on the azotea the camera drops to look over the creek to Intramuros across the Pasig.
+  zoneCameras: { azotea: 'outdoor' },
   bounds: { x: 0, z: -4, w: 32, d: 14 },
   floors: [
     { x: 0, z: 0, w: 12, d: D, y: 0, tex: 'narra' }, // the sala
@@ -37,7 +39,7 @@ export const upper = {
     { x: 26, z: -0.4, w: 6.4, d: 0.4, y: 0, h: H, tex: 'plaster' },
     { x: 26, z: -4.4, w: 6.4, d: 4, y: 0, h: H, tex: 'plaster', collide: false },
     // the arches' posts (the arches prop draws them; these make them solid)
-    ...[12, 14.8, 17.6, 20.4, 23.2, 26].map((x) => ({ x: x - 0.11, z: -0.11, w: 0.22, d: 0.22, y: 0, h: 2.8, tex: 'wood' })),
+    ...[12, 14.8, 17.6, 20.4, 23.2, 26].map((x) => ({ x: x - 0.11, z: -0.11, w: 0.22, d: 0.22, y: 0, h: 2.8, tex: 'wood', fadeIn: ['azotea'] })),
     // between the sala and the caída: a wall seen edge-on, with a wide doorway (z 2.4–7.6)
     { x: 11.9, z: 0, w: 0.25, d: 2.4, y: 0, h: H, tex: 'plaster' },
     { x: 11.9, z: 7.6, w: 0.25, d: 2.4, y: 0, h: H, tex: 'plaster' },
@@ -70,14 +72,15 @@ export const upper = {
     { type: 'chair', x: 10.85, z: 1, rot: 0 },
     { type: 'chair', x: 0.8, z: 4.2, rot: 1 },
     { type: 'chair', x: 0.8, z: 5.6, rot: 1 },
-    { type: 'sofa', x: 2.6, z: 9.2, w: 2.4 },
-    { type: 'sofa', x: 9.6, z: 9.2, w: 2.2 },
+    // against the front wall under the street windows, facing into the sala
+    { type: 'sofa', x: 2.6, z: 9.2, w: 2.4, rot: 2 },
+    { type: 'sofa', x: 9.6, z: 9.2, w: 2.2, rot: 2 },
     { type: 'table', x: 6.1, z: 9.3, w: 1, d: 0.6, cloth: false },
     { type: 'palm', x: 0.6, z: 9.3 },
     { type: 'palm', x: 11.3, z: 2.8 },
     { type: 'candelabrum', x: 0.6, z: 2.6 },
     // ---- the caída ----
-    { type: 'arches', x: 19, z: 0, w: 14, count: 5 },
+    { type: 'arches', x: 19, z: 0, w: 14, count: 5, fadeIn: ['azotea'] }, // faded while you stand out beyond them
     { type: 'table', x: 19.5, z: 5, w: 11, d: 1.4 },
     ...NORTH.map((x) => ({ type: 'chair', x, z: 3.9, rot: 0 })),
     ...SOUTH.map((x) => ({ type: 'chair', x, z: 6.1, rot: 2 })),
@@ -188,7 +191,9 @@ export const upper = {
     azotea_guest_1: [19.8, -3],
     azotea_guest_2: [20.8, -3.1],
   },
-  backdrop: { z: -40, x0: -30, x1: 62, seed: 5 },
+  // Intramuros across the Pasig, seen from the azotea beyond the creek's far bank: its wall rises
+  // straight from the water's far edge, painted small so it reads as distant.
+  backdrop: { z: -22.05, x0: -30, x1: 62, seed: 5, y: -3, scale: 0.5 },
   extras: [
     { id: 'lady_1', costume: 'lady_a', spot: 'lady_seat_1', pose: 'sit', dir: 'down' },
     { id: 'lady_2', costume: 'lady_b', spot: 'lady_seat_2', pose: 'sit', dir: 'down' },
