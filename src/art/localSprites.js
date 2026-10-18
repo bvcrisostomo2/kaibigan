@@ -3,13 +3,13 @@
 //   local-assets/sprites/<set>/<anim>/<NN>.png      frames (sizes may differ between anims)
 //   local-assets/sprites/overrides.json             { "<costumeId>": "<set>" }
 //
-// local-assets/ is git-ignored: third-party art used as a stand-in must never be committed or
-// deployed. The file list comes from localSpritesFiles.js, which is imported only on the dev
+// Third-party art used as a stand-in must never be deployed. The file list comes from localSpritesFiles.js, which is imported only on the dev
 // server: a production build never bundles local frames, even when the folder exists. When the
 // folder is absent (a fresh clone) nothing is loaded and every character keeps its shipped art.
 //
-// Animation folders are <kind>_<view>, kind = walk | run | idle | sit, view = front | back | left |
-// right | right_front | right_back | left_front | left_back. Missing left diagonals are mirrored
+// Animation folders are <kind>_<view>, kind = walk | run | idle | sit | act_<activity> (an extra's
+// activity, e.g. act_sweep), view = front | back | left | right | right_front | right_back |
+// left_front | left_back. Missing left diagonals are mirrored
 // from the right ones. A solid background colour (each frame's top-left pixel) is keyed out.
 // Frames of different sizes are packed into uniform cells, centred and bottom-aligned per
 // animation so feet stay planted.
@@ -48,18 +48,21 @@ export function groupFrames(urlsByPath) {
   return sets;
 }
 
+// <kind>_<view> or <kind>_<dir>; an activity's kind is act_<name>, the name without underscores.
+const KIND_AND_VIEW = /^(walk|run|idle|sit|act_[a-z]+)_(.+)$/;
+
 // Map folder names to animation names and add mirrored left variants (pure).
 // Returns { animName: { urls: [...], mirror: boolean } }.
 export function planAnimations(folders) {
   const anims = {};
   for (const [folder, urls] of Object.entries(folders)) {
-    const m = /^(walk|run|idle|sit)_(.+)$/.exec(folder);
+    const m = KIND_AND_VIEW.exec(folder);
     if (!m || !VIEW_TO_DIR[m[2]]) continue;
     anims[`${m[1]}_${VIEW_TO_DIR[m[2]]}`] = { urls, mirror: false };
   }
   for (const [name, a] of Object.entries({ ...anims })) {
-    const [kind, ...rest] = name.split('_');
-    const target = MIRROR[rest.join('_')];
+    const [, kind, dir] = KIND_AND_VIEW.exec(name);
+    const target = MIRROR[dir];
     if (target && !anims[`${kind}_${target}`]) anims[`${kind}_${target}`] = { urls: a.urls, mirror: true };
   }
   return anims;
@@ -96,7 +99,7 @@ function keyed(img) {
 async function buildSheet(folders) {
   const plan = planAnimations(folders);
   const names = Object.keys(plan);
-  if (!names.length) throw new Error('no walk_/run_/idle_ folders');
+  if (!names.length) throw new Error('no walk_/run_/idle_/sit_/act_ folders');
   const urls = [...new Set(names.flatMap((n) => plan[n].urls))];
   const frames = new Map();
   await Promise.all(urls.map(async (u) => frames.set(u, keyed(await loadImage(u)))));
