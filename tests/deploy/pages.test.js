@@ -11,8 +11,9 @@ describe('GitHub Pages workflow', () => {
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it('fails the job if local art leaks into the build', () => {
-    expect(yml).toContain('grep -rlE "data:image/png|_kb|local-assets/portraits" dist');
+  it('fails the job if local portraits or the dev hook leak into the build (the sprite sets ship)', () => {
+    expect(yml).toContain('grep -rlE "local-assets/portraits|__kaibigan" dist');
+    expect(yml).not.toContain('_kb|');
     expect(yml).toContain('exit 1');
   });
 });

@@ -1,11 +1,11 @@
-// Optional, LOCAL-ONLY sprite sets that replace a costume's procedural sheet.
+// Kitbash sprite sets that replace a costume's procedural sheet, on the dev server and in the
+// published game alike.
 //
 //   local-assets/sprites/<set>/<anim>/<NN>.png      frames (sizes may differ between anims)
 //   local-assets/sprites/overrides.json             { "<costumeId>": "<set>" }
 //
-// Third-party art used as a stand-in must never be deployed. The file list comes from localSpritesFiles.js, which is imported only on the dev
-// server: a production build never bundles local frames, even when the folder exists. When the
-// folder is absent (a fresh clone) nothing is loaded and every character keeps its shipped art.
+// The file list comes from localSpritesFiles.js, loaded in its own chunk. A costume without a set
+// keeps its procedural sheet; with no sets at all, every character keeps its shipped art.
 //
 // Animation folders are <kind>_<view>, kind = walk | run | idle | sit | act_<activity> (an extra's
 // activity, e.g. act_sweep), view = front | back | left | right | right_front | right_back |
@@ -28,9 +28,8 @@ export const VIEW_TO_DIR = {
 };
 const MIRROR = { down_right: 'down_left', up_right: 'up_left', right: 'left', left: 'right' };
 
-// The local files, on the dev server only (see the header).
+// The sets' files (see the header).
 async function localFiles() {
-  if (!import.meta.env.DEV) return { urls: {}, overrides: {} };
   const files = await import('./localSpritesFiles.js');
   return { urls: files.frameUrls, overrides: Object.values(files.overrideFiles)[0] ?? {} };
 }
