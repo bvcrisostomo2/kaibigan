@@ -91,6 +91,8 @@ export const EN = {
   'touch.talk': 'Talk',
   'touch.journal': 'Journal',
   'touch.menu': 'Menu',
+  'rotate.title': 'Turn your phone sideways',
+  'rotate.detail': 'Kaibigan plays in landscape.',
 
   'fatal.start': "Sorry, the game couldn't start. Try reloading the page.",
   'fatal.webgl': "Sorry, this browser can't run the game (WebGL is unavailable). Try a recent Chrome, Edge, Firefox or Safari.",

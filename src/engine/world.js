@@ -18,21 +18,25 @@
 //   floors:  [{ x, z, w, d, y, tex, thick? }]            top surface at y
 //   stairs:  [{ x, z, w, d, y0, y1, dir, tex }]           dir = high side n|s|e|w. No floor at y0 or
 //            y1 may overlap a stair's footprint (buildWorld throws).
-//   walls:   [{ x, z, w, d, y, h, tex, collide? }]        solid boxes
+//   walls:   [{ x, z, w, d, y, h, tex, collide?, fadeIn? }]  solid boxes (fadeIn: as for props)
 //   roofs:   [{ x, z, w, d, y, rise, tex, axis: 'x'|'z' }]  gable roofs (outdoor façades)
 //   windows: [{ x, z, y, w, h, facing: 'n'|'s'|'e'|'w' }]   capiz panels set into a wall, glowing at night
 //   water:   [{ x, z, w, d, y }]
-//   props:   [{ type, x, z, y?, rot?, ...opts }]           see art/props.js
+//   props:   [{ type, x, z, y?, rot?, fadeIn?, ...opts }]  see art/props.js; fadeIn: zones in which the
+//            prop fades (it stands between the camera and them)
 //   lights:  [{ x, y, z, color, intensity, distance, flicker? }]
 //   zones:   { name: { x, z, w, d, y0?, y1? } }
 //   spots:   { name: [x, z] | [x, z, y] }
 //   extras:  [{ id, costume, spot?, loop?, ... }]        background people (engine/extras.js)
-//   backdrop: { z, x0, x1, seed }                         a far silhouette of the city along z
+//   backdrop: { z, x0, x1, seed, y?, scale? }             the painted city on the water's far edge (z,
+//            at its level y), drawn at scale; hills and sky behind
+//   zoneCameras: { zone: preset }                         zones framed differently (the azotea looks out)
 import * as THREE from 'three';
 import { createCollision, stairFloorOverlaps } from './collision.js';
 import { makeProp, material, tiledBox } from '../art/props.js';
-import { tileTexture } from '../art/threeTextures.js';
-import { rng } from '../art/pixel.js';
+import { tileTexture, tileNormal, toTexture } from '../art/threeTextures.js';
+import { paintSkyline, paintHills, paintSky, SKYLINE_HEIGHT } from '../art/backdrop.js';
+import { textureSpan } from '../art/textures.js';
 
 const FACING = { n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 };
 export const MAP_MARGIN = 4; // tiles around a map's bounds that still count as that map
@@ -68,7 +72,19 @@ export function buildWorld(level) {
   const zones = {};
   const lightSources = [];
   const windowMaterials = [];
+  const skyMaterials = [];
   const animated = [];
+  const faders = [];
+  // Let an object fade in zones: its own copies of its materials, so fading it leaves everything
+  // else that shares them.
+  const fadeWith = (object, zones) => {
+    object.traverse((o) => {
+      if (!o.material) return;
+      o.material = o.material.clone();
+      o.material.transparent = true;
+    });
+    faders.push({ object, zones, opacity: 1 });
+  };
   const spotList = [];
   const extras = [];
   const info = {};
@@ -88,7 +104,7 @@ export function buildWorld(level) {
     g.name = id;
     group.add(g);
     const b = moved(map.bounds ?? floorExtent(map), off);
-    info[id] = { id, name: map.name ?? null, detail: map.detail ?? null, camera: map.camera ?? 'indoor', bounds: b, group: g };
+    info[id] = { id, name: map.name ?? null, detail: map.detail ?? null, camera: map.camera ?? 'indoor', zoneCameras: map.zoneCameras ?? {}, bounds: b, group: g };
 
     for (const f0 of map.floors ?? []) {
       const f = moved(f0, off);
@@ -121,6 +137,7 @@ export function buildWorld(level) {
       const mesh = tiledBox(w.w, w.h, w.d, material(w.tex));
       mesh.position.set(w.x + w.w / 2, w.y + w.h / 2, w.z + w.d / 2);
       g.add(mesh);
+      if (w.fadeIn) fadeWith(mesh, w.fadeIn);
       if (w.collide !== false) blockers.push({ x: w.x, z: w.z, w: w.w, d: w.d, y0: w.y, y1: w.y + w.h });
     }
 
@@ -158,14 +175,20 @@ export function buildWorld(level) {
 
     for (const wt of map.water ?? []) {
       const wtr = moved(wt, off);
+      // A shiny surface whose swell (a normal map) drifts against the colour, so lamps and the
+      // sky glint off moving ripples.
+      const span = textureSpan('water');
       const tex = tileTexture('water').clone();
       tex.needsUpdate = true;
-      tex.repeat.set(wtr.w, wtr.d);
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(wtr.w, wtr.d), new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: 0.92 }));
+      tex.repeat.set(wtr.w / span, wtr.d / span);
+      const normal = tileNormal('water');
+      normal.repeat.set((wtr.w / span) * 1.5, (wtr.d / span) * 1.5);
+      const mat = new THREE.MeshPhongMaterial({ map: tex, normalMap: normal, normalScale: new THREE.Vector2(0.7, 0.7), specular: new THREE.Color('#a8c8d0'), shininess: 70, transparent: true, opacity: 0.9 });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(wtr.w, wtr.d), mat);
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(wtr.x + wtr.w / 2, wtr.y, wtr.z + wtr.d / 2);
       mesh.receiveShadow = true;
-      animated.push({ kind: 'water', texture: tex });
+      animated.push({ kind: 'water', texture: tex, normal });
       g.add(mesh);
     }
 
@@ -175,11 +198,13 @@ export function buildWorld(level) {
       const y = p.y ?? collision.heightAt(p.x, p.z, p.floorY ?? 0) ?? 0;
       prop.object.position.set(p.x, y, p.z);
       g.add(prop.object);
+      if (p.fadeIn) fadeWith(prop.object, p.fadeIn);
       if (prop.footprint && p.collide !== false) {
         // Solid from the floor under it, even when it stands raised on a dais.
         const floorY = collision.heightAt(p.x, p.z, p.floorY ?? 0) ?? y;
         blockers.push({ x: p.x - prop.footprint.w / 2, z: p.z - prop.footprint.d / 2, w: prop.footprint.w, d: prop.footprint.d, y0: Math.min(y, floorY), y1: y + 2 });
       }
+      windowMaterials.push(...(prop.windows ?? [])); // glowing panes, lit by the time of day
       for (const l of prop.lights) lightSources.push({ ...l, map: id, position: [p.x + l.offset[0], y + l.offset[1], p.z + l.offset[2]] });
     }
     for (const l0 of map.lights ?? []) {
@@ -187,7 +212,7 @@ export function buildWorld(level) {
       lightSources.push({ ...l, map: id, position: [l.x, l.y, l.z], flicker: l.flicker ?? 0 });
     }
 
-    if (map.backdrop) g.add(buildBackdrop(moved(map.backdrop, off), map.backdrop, off));
+    if (map.backdrop) g.add(buildBackdrop(moved(map.backdrop, off), map.backdrop, off, skyMaterials));
     const lowest = Math.min(0, ...(map.floors ?? []).map((f) => f.y - (f.thick ?? 0.25)), ...(map.stairs ?? []).map((s) => Math.min(s.y0, s.y1)), ...(map.water ?? []).map((w) => w.y));
     g.add(buildBase(b, map.camera ?? 'indoor', lowest - 0.1));
     if (level.maps) for (const c of buildCurtains(b, !map.backdrop && !(map.water ?? []).length)) g.add(c);
@@ -213,49 +238,52 @@ export function buildWorld(level) {
 
   const spawn = typeof level.spawn === 'string' ? spots[level.spawn]?.clone() : level.spawn ? toPoint(level.spawn, collision) : new THREE.Vector3();
 
-  return { group, maps: info, mapAt, doors, doorAt, locked: level.locked ?? [], extras, collision, lightSources, windowMaterials, animated, spots, spawn: spawn ?? new THREE.Vector3(), zones };
+  return { group, maps: info, mapAt, doors, doorAt, locked: level.locked ?? [], extras, collision, lightSources, windowMaterials, skyMaterials, animated, faders, spots, spawn: spawn ?? new THREE.Vector3(), zones };
 }
 
 function toPoint([x, z, y], collision) {
   return new THREE.Vector3(x, y ?? collision.heightAt(x, z, 0) ?? 0, z);
 }
 
-// A far city silhouette along a line at z: houses, towers and domes in muted dusk tones,
-// deterministic for a seed. Unlit, so it reads as distance at every time of day.
-export function backdropShapes({ x0, x1, seed = 1 }) {
-  const rand = rng(seed);
-  const shapes = [];
-  let x = x0;
-  while (x < x1) {
-    const kind = rand() < 0.12 ? 'tower' : rand() < 0.1 ? 'dome' : 'house';
-    const w = kind === 'tower' ? 1.2 + rand() : kind === 'dome' ? 3 + rand() * 2 : 2 + rand() * 4;
-    const h = kind === 'tower' ? 9 + rand() * 5 : kind === 'dome' ? 5 + rand() * 2 : 2.5 + rand() * 4;
-    shapes.push({ kind, x, w, h, shade: rand() });
-    x += w + rand() * 0.6;
-  }
-  return shapes;
-}
-
-function buildBackdrop(at, spec, off) {
+// The painted city behind a map (art/backdrop.js): the skyline (the muralla and the churches,
+// domes and roofs of Intramuros over it) on a plane at z, lit like the world so it darkens with
+// the evening; hazy hills further back; and a sky further still, unlit and unfogged, whose colour
+// the frame loop sets to the time of day's (world.skyMaterials). The skyline stands at the far
+// edge of the map's water (z), its foot at the water's level (y), so the wall always rises
+// straight out of the river; it is painted at `scale` (a miniature, so it reads as distant).
+// Hills and sky stand further back.
+function buildBackdrop(at, spec, off, skyMaterials) {
   const g = new THREE.Group();
-  for (const s of backdropShapes({ x0: spec.x0 + off[0], x1: spec.x1 + off[0], seed: spec.seed })) {
-    const color = new THREE.Color('#3b3552').lerp(new THREE.Color('#544a66'), s.shade);
-    const mat = new THREE.MeshBasicMaterial({ color });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, 1), mat);
-    body.position.set(s.x + s.w / 2, s.h / 2, at.z);
-    g.add(body);
-    if (s.kind === 'dome') {
-      const dome = new THREE.Mesh(new THREE.SphereGeometry(s.w / 2, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat);
-      dome.position.set(s.x + s.w / 2, s.h, at.z);
-      g.add(dome);
-    }
-    if (s.kind === 'house') {
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(s.w * 0.75, 1.2, 4), mat);
-      roof.rotation.y = Math.PI / 4;
-      roof.position.set(s.x + s.w / 2, s.h + 0.6, at.z);
-      g.add(roof);
-    }
-  }
+  const x0 = spec.x0 + off[0];
+  const x1 = spec.x1 + off[0];
+  const width = x1 - x0;
+  const mid = (x0 + x1) / 2;
+  const foot = spec.y ?? -0.5;
+  const scale = spec.scale ?? 1;
+  const plane = (canvas, w, h, x, y, z, mat) => {
+    mat.map = toTexture(canvas);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    mesh.position.set(x, y + h / 2, z);
+    return mesh;
+  };
+
+  const sky = new THREE.MeshBasicMaterial({ fog: false, depthWrite: false });
+  skyMaterials.push(sky);
+  const skyMesh = plane(paintSky({ seed: spec.seed }), width * 3, 70, mid, foot - 10, at.z - 60, sky);
+  skyMesh.renderOrder = -1;
+  skyMesh.userData.sky = true;
+  g.add(skyMesh);
+
+  const hills = paintHills({ width: Math.round(width * 1.8 * 4), seed: spec.seed + 1 });
+  g.add(plane(hills, width * 1.8, hills.height / 4, mid, foot - 1, at.z - 30, new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.5 })));
+
+  const city = paintSkyline({ x0: 0, x1: width / scale, seed: spec.seed });
+  // Unfogged (the haze would wash it out); the lights still darken it at night. Its foot dips just
+  // under the water so no seam shows.
+  const skyline = plane(city, width, SKYLINE_HEIGHT * scale, mid, foot - 0.2, at.z, new THREE.MeshLambertMaterial({ alphaTest: 0.5, fog: false }));
+  skyline.userData.skyline = true;
+  g.add(skyline);
+
   g.userData.backdrop = true;
   return g;
 }
@@ -297,7 +325,30 @@ function buildCurtains(b, closeNorth) {
   return out;
 }
 
-// Per-frame world animation (water drift).
+// How far a prop fades while the player stands in one of its fadeIn zones.
+export const FADED_OPACITY = 0.18;
+
+// Per frame: ease each fading prop toward faded (the player is in one of its zones) or solid.
+export function updateFades(world, zone, dt) {
+  const k = 1 - Math.exp(-6 * dt);
+  for (const f of world.faders) {
+    const want = f.zones.includes(zone) ? FADED_OPACITY : 1;
+    if (f.opacity === want) continue;
+    f.opacity += (want - f.opacity) * k;
+    if (Math.abs(f.opacity - want) < 0.002) f.opacity = want;
+    f.object.traverse((o) => {
+      if (!o.material) return;
+      o.material.opacity = f.opacity;
+      o.material.depthWrite = f.opacity === 1;
+    });
+  }
+}
+
+// Per-frame world animation (water: the colour drifts downstream, the ripples faster and across).
 export function animateWorld(world, time) {
-  for (const a of world.animated) if (a.kind === 'water') a.texture.offset.set(time * 0.03, Math.sin(time * 0.5) * 0.02);
+  for (const a of world.animated) {
+    if (a.kind !== 'water') continue;
+    a.texture.offset.set(time * 0.03, Math.sin(time * 0.5) * 0.02);
+    a.normal?.offset.set(time * 0.05, time * 0.012 + Math.sin(time * 0.3) * 0.03);
+  }
 }

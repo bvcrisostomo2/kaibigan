@@ -1,5 +1,6 @@
 // Low-poly props built from boxes with pixel textures (spec §4.1).
-// Every factory returns { object, footprint: { w, d } | null, lights: [LightSource] }.
+// Every factory returns { object, footprint: { w, d } | null, lights: [LightSource], windows? }:
+// windows are glowing pane materials the world lights with the time of day.
 // A LightSource is { offset: [x, y, z], color, intensity, distance, flicker } relative to the prop.
 // The house's furnishings and the street's things live in furnishings.js (Plan 5a).
 import * as THREE from 'three';

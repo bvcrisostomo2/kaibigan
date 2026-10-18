@@ -1,14 +1,19 @@
 // Mesh building blocks shared by the prop modules (props.js, furnishings.js).
 import * as THREE from 'three';
-import { tileTexture } from './threeTextures.js';
+import { tileTexture, tileBump } from './threeTextures.js';
 
 const matCache = new Map();
 
-// Lambert material with a tiled texture or flat colour; cached so props share materials.
+// How strongly a texture's relief shows under the lights.
+export const BUMP_SCALE = 1.6;
+
+// Lambert material with a tiled texture (and its bump map) or flat colour; cached so props share
+// materials.
 export function material(texOrColor, extra = {}) {
   const key = texOrColor + JSON.stringify(extra);
   if (!matCache.has(key)) {
-    const opts = texOrColor.startsWith('#') ? { color: texOrColor } : { map: tileTexture(texOrColor) };
+    const bump = texOrColor.startsWith('#') ? null : tileBump(texOrColor);
+    const opts = texOrColor.startsWith('#') ? { color: texOrColor } : { map: tileTexture(texOrColor), ...(bump ? { bumpMap: bump, bumpScale: BUMP_SCALE } : {}) };
     matCache.set(key, new THREE.MeshLambertMaterial({ ...opts, ...extra }));
   }
   return matCache.get(key);

@@ -1,17 +1,28 @@
 // Follow camera (spec §4.1; Plan 5 spec §3.2): looks north at a fixed pitch, follows a target
-// smoothly, zooms within limits, and stops at the current map's edges so it never shows past
-// them. Each map picks a preset: 'outdoor' (low, house fronts square-on) or 'indoor' (higher,
-// into a room open at the front). Nothing between camera and player needs fading: interiors have
-// no front wall, ceiling or roof.
+// smoothly and stops at the current map's edges so it never shows past them. Each map picks a
+// preset: 'outdoor' (lower, house fronts square-on) or 'indoor' (higher, into a room open at the
+// front); a zone may have its own (the azotea looks out over the creek), eased to with blendTo.
+// Both keep a character the same size on screen (see framingDistance); there is no manual
+// zoom, only the stage's scripted one. Interiors have no front wall, ceiling or roof; the few
+// things that do stand between camera and player in some zone fade there (world.js fadeIn).
 import * as THREE from 'three';
 
-export const CAMERA_DEFAULTS = { fov: 30, pitchDeg: 38, distance: 15, minDistance: 9, maxDistance: 21, follow: 6, lookHeight: 0.8, frontMargin: 0 };
+// spriteScale: the fraction of the screen's height one world unit standing upright at the focus
+// takes up, the same on every map.
+export const CAMERA_DEFAULTS = { fov: 30, pitchDeg: 38, spriteScale: 0.115, follow: 6, lookHeight: 1.4, frontGap: Infinity };
 
-// lookHeight: how far above the player the camera aims (outdoors higher, to take in the roofs
-// and the city behind); frontMargin: how far the focus stays back from a map's open front edge.
+// How quickly a blend between framings eases (per second).
+const BLEND_RATE = 3.5;
+
+// How far a scripted zoom may go from a preset's distance, as fractions of it.
+export const ZOOM_RANGE = { min: 0.7, max: 1.3 };
+
+// lookHeight: how far above the player's feet the camera aims, which puts the player a little
+// below the middle of the screen; frontGap: how far past a map's open front edge the bottom of the
+// screen may reach (the focus stays back from the edge just enough for that, see frontReach).
 export const CAMERA_PRESETS = {
-  outdoor: { pitchDeg: 26, distance: 19, minDistance: 15, maxDistance: 23, lookHeight: 4.4, frontMargin: 1 },
-  indoor: { pitchDeg: 42, distance: 13, minDistance: 10, maxDistance: 16, lookHeight: 0.8, frontMargin: 2.5 },
+  outdoor: { pitchDeg: 24, lookHeight: 1.4, frontGap: 1.5 },
+  indoor: { pitchDeg: 42, lookHeight: 1.4, frontGap: 0.6 },
 };
 
 // Camera position relative to the target for a pitch (degrees down) and distance.
@@ -20,8 +31,26 @@ export function cameraOffset(pitchDeg, distance) {
   return new THREE.Vector3(0, Math.sin(p) * distance, Math.cos(p) * distance);
 }
 
-export function clampDistance(d, opts = CAMERA_DEFAULTS) {
-  return Math.max(opts.minDistance, Math.min(opts.maxDistance, d));
+// The distance at which an upright unit at the focus fills spriteScale of the screen's height for
+// a pitch and vertical fov. Seen from higher up, upright things look shorter (by the pitch's
+// cosine), so a higher camera comes closer.
+export function framingDistance(pitchDeg, fovDeg = CAMERA_DEFAULTS.fov, spriteScale = CAMERA_DEFAULTS.spriteScale) {
+  const p = (pitchDeg * Math.PI) / 180;
+  return Math.cos(p) / (2 * Math.tan(((fovDeg / 2) * Math.PI) / 180) * spriteScale);
+}
+
+// How far in front of the focus the bottom edge of the screen meets the ground, for a camera at a
+// pitch and distance aiming lookHeight above the focus.
+export function frontReach(pitchDeg, distance, lookHeight, fovDeg = CAMERA_DEFAULTS.fov) {
+  const p = (pitchDeg * Math.PI) / 180;
+  const height = Math.sin(p) * distance;
+  const back = Math.cos(p) * distance;
+  const down = Math.atan2(height - lookHeight, back) + ((fovDeg / 2) * Math.PI) / 180;
+  return back - height / Math.tan(down);
+}
+
+export function clampDistance(d, base) {
+  return Math.max(base * ZOOM_RANGE.min, Math.min(base * ZOOM_RANGE.max, d));
 }
 
 // Half the width of the view at the focus, for a vertical fov, aspect and distance.
@@ -46,9 +75,17 @@ export function createFollowCamera(aspect, options = {}) {
   const opts = { ...CAMERA_DEFAULTS, ...options };
   const camera = new THREE.PerspectiveCamera(opts.fov, aspect, 0.1, 200);
   const focus = new THREE.Vector3();
-  let distance = opts.distance;
+  let zoom = 1; // a scripted zoom, as a fraction of the framing distance
+  let distance = framingDistance(opts.pitchDeg, opts.fov, opts.spriteScale);
   let target = null; // an Object3D or Vector3 to follow
   let bounds = null;
+  let view = null; // the preset name in use (or being blended to)
+  let blend = null; // { pitchDeg, lookHeight, frontGap } being eased toward
+
+  const presetOf = (preset) => (typeof preset === 'string' ? CAMERA_PRESETS[preset] ?? CAMERA_PRESETS.indoor : preset);
+  function frame() {
+    distance = framingDistance(opts.pitchDeg, opts.fov, opts.spriteScale) * zoom;
+  }
 
   function targetPoint() {
     if (!target) return focus;
@@ -57,7 +94,8 @@ export function createFollowCamera(aspect, options = {}) {
 
   function goal() {
     const p = targetPoint();
-    const c = clampFocus(p, bounds, halfViewWidth(opts.fov, camera.aspect, distance), opts.frontMargin);
+    const margin = Math.max(0, frontReach(opts.pitchDeg, distance, opts.lookHeight, opts.fov) - opts.frontGap);
+    const c = clampFocus(p, bounds, halfViewWidth(opts.fov, camera.aspect, distance), margin);
     return new THREE.Vector3(c.x, p.y, c.z);
   }
 
@@ -70,6 +108,9 @@ export function createFollowCamera(aspect, options = {}) {
     camera,
     get distance() { return distance; },
     get pitch() { return opts.pitchDeg; },
+    get view() { return view; },
+    // The point being followed (the player, or whoever a scene turns to): what the blur keeps sharp.
+    get subject() { return targetPoint(); },
     follow(objOrPoint, { snap = false } = {}) {
       target = objOrPoint;
       if (snap) {
@@ -77,20 +118,28 @@ export function createFollowCamera(aspect, options = {}) {
         place();
       }
     },
-    // Switch to a map's framing: a preset name or { pitchDeg, distance, minDistance, maxDistance },
-    // and the map's bounds. Snaps (used under a transition's fade).
+    // Switch to a map's framing: a preset name or { pitchDeg, lookHeight, frontGap }, and the
+    // map's bounds. Snaps (used under a transition's fade).
     useMap(preset, mapBounds = null) {
-      Object.assign(opts, typeof preset === 'string' ? CAMERA_PRESETS[preset] ?? CAMERA_PRESETS.indoor : preset);
-      distance = opts.distance;
+      Object.assign(opts, presetOf(preset));
+      view = typeof preset === 'string' ? preset : null;
+      blend = null;
+      zoom = 1;
+      frame();
       bounds = mapBounds;
       focus.copy(goal());
       place();
     },
-    zoomBy(delta) {
-      distance = clampDistance(distance + delta, opts);
+    // Ease to another framing on the same map (a zone with its own view, like the azotea).
+    blendTo(preset) {
+      view = typeof preset === 'string' ? preset : null;
+      blend = { ...presetOf(preset) };
     },
+    // A scripted zoom (the stage's 'camera zoom'), held near the preset's framing.
     setDistance(d) {
-      distance = clampDistance(d, opts);
+      const base = framingDistance(opts.pitchDeg, opts.fov, opts.spriteScale);
+      zoom = clampDistance(d, base) / base;
+      frame();
     },
     resize(newAspect) {
       camera.aspect = newAspect;
@@ -99,6 +148,18 @@ export function createFollowCamera(aspect, options = {}) {
     update(dt) {
       if (!Number.isFinite(dt)) return;
       const k = 1 - Math.exp(-opts.follow * dt);
+      if (blend) {
+        const kb = 1 - Math.exp(-BLEND_RATE * dt);
+        let done = true;
+        for (const key of Object.keys(blend)) {
+          const to = blend[key];
+          const next = Number.isFinite(to) && Number.isFinite(opts[key]) ? opts[key] + (to - opts[key]) * kb : to;
+          opts[key] = Math.abs(next - to) < 1e-4 ? to : next;
+          if (opts[key] !== to) done = false;
+        }
+        if (done) blend = null;
+        frame();
+      }
       focus.lerp(goal(), k);
       place();
     },

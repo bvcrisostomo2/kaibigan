@@ -4,7 +4,7 @@
 //   2. a hand-authored character (art/cast/)
 //   3. the procedural painter (art/characters.js)
 import * as THREE from 'three';
-import { drawTexture } from './textures.js';
+import { drawSurface, textureSpan } from './textures.js';
 import { drawCharacterSheet, drawPortrait, sheetAnims, sheetRows, CELL_W, CELL_H, SHEET_COLS } from './characters.js';
 import { COSTUMES } from './costumes.js';
 import { drawHandmadeSheet } from './handmade.js';
@@ -21,14 +21,49 @@ export function toTexture(pixels, { repeat = false } = {}) {
   return tex;
 }
 
-const tiles = new Map();
+const surfaces = new Map(); // name → { map, bump } textures
+
 const overrides = new Map(); // costumeId → registered sheet
 const built = new Map(); // costumeId → hand-authored or procedural sheet, built on first use
 
+// A texture's colour and bump textures (bump null when it is flat), repeat-wrapped once every
+// span units: meshes give their faces one UV unit per world unit (meshes.js tiledBox).
+function surfaceTextures(name) {
+  if (!surfaces.has(name)) {
+    const s = drawSurface(name);
+    const span = textureSpan(name);
+    const map = toTexture(s.toCanvas(), { repeat: true });
+    map.repeat.set(1 / span, 1 / span);
+    let bump = null;
+    if (s.hasRelief()) {
+      bump = toTexture(s.heightCanvas(), { repeat: true });
+      bump.colorSpace = THREE.NoColorSpace;
+      bump.repeat.set(1 / span, 1 / span);
+    }
+    surfaces.set(name, { map, bump });
+  }
+  return surfaces.get(name);
+}
+
+// A tile's height as a normal map (its own texture, repeat-wrapped once every span units), for
+// surfaces that move (water).
+export function tileNormal(name, strength = 4) {
+  const tex = toTexture(drawSurface(name).normalCanvas(strength), { repeat: true });
+  tex.colorSpace = THREE.NoColorSpace;
+  tex.magFilter = tex.minFilter = THREE.LinearFilter;
+  const span = textureSpan(name);
+  tex.repeat.set(1 / span, 1 / span);
+  return tex;
+}
+
 // Shared tile texture (repeat-wrapped). Callers that need their own repeat must clone().
 export function tileTexture(name) {
-  if (!tiles.has(name)) tiles.set(name, toTexture(drawTexture(name), { repeat: true }));
-  return tiles.get(name);
+  return surfaceTextures(name).map;
+}
+
+// The tile's height as a bump texture (shared, like tileTexture), or null for a flat one.
+export function tileBump(name) {
+  return surfaceTextures(name).bump;
 }
 
 // Replace a costume's sheet. meta = { texture, cellW, cellH, cols, rows, footMargin, anims }.

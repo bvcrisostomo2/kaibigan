@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { sheetFor, sheetSource, registerSheet, clearRegisteredSheets, tileTexture, portraitPixels } from '../../src/art/threeTextures.js';
+import { sheetFor, sheetSource, registerSheet, clearRegisteredSheets, tileTexture, tileBump, portraitPixels } from '../../src/art/threeTextures.js';
 
 afterEach(() => clearRegisteredSheets());
 
@@ -43,7 +43,17 @@ describe('tile textures and portraits', () => {
     const t = tileTexture('narra');
     expect(tileTexture('narra')).toBe(t);
     expect(t.wrapS).toBe(THREE.RepeatWrapping);
-    expect(t.image.width).toBe(32);
+    expect(t.image.width).toBe(128); // four units at 32 px each
+    expect(t.repeat.x).toBeCloseTo(1 / 4); // so one UV unit is one world unit
+  });
+
+  it('gives textured surfaces a matching bump map, and flat ones none', () => {
+    const bump = tileBump('cobble');
+    expect(tileBump('cobble')).toBe(bump);
+    expect(bump.image.width).toBe(tileTexture('cobble').image.width);
+    expect(bump.repeat.x).toBeCloseTo(tileTexture('cobble').repeat.x);
+    expect(bump.colorSpace).toBe(THREE.NoColorSpace);
+    expect(tileBump('capiz')).toBeNull();
   });
 
   it('draws pixel portraits for known costumes only', () => {

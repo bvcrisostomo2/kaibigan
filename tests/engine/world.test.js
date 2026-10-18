@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { buildWorld, animateWorld, backdropShapes } from '../../src/engine/world.js';
+import { buildWorld, animateWorld, updateFades, FADED_OPACITY } from '../../src/engine/world.js';
 
 const level = {
   floors: [
@@ -60,6 +60,45 @@ describe('buildWorld: a level without maps is one map', () => {
     expect(world.animated).toHaveLength(1);
     animateWorld(world, 10);
     expect(world.animated[0].texture.offset.x).toBeCloseTo(0.3);
+    expect(world.animated[0].normal.offset.x).toBeCloseTo(0.5); // the ripples outrun the colour
+  });
+
+  it('gives water a shiny, rippling material', () => {
+    const water = world.maps.main?.group ?? world.group;
+    let mat = null;
+    water.traverse((o) => { if (o.material?.normalMap) mat = o.material; });
+    expect(mat).toBeInstanceOf(THREE.MeshPhongMaterial);
+    expect(mat.shininess).toBeGreaterThan(20);
+  });
+
+  it('fades a prop that stands between the camera and a zone while the player is in it', () => {
+    const w = buildWorld({ ...level, props: [...level.props, { type: 'arches', x: 5, z: 0, w: 6, count: 2, fadeIn: ['street'] }], walls: [...level.walls, { x: 1, z: 1, w: 0.2, d: 0.2, y: 0, h: 2, tex: 'wood', fadeIn: ['street'] }] });
+    expect(w.faders).toHaveLength(2); // the post (a wall) and the arches
+    const fade = w.faders[1];
+    const mats = new Set();
+    fade.object.traverse((o) => o.material && mats.add(o.material));
+    // Its own materials, so fading it leaves every other wooden thing alone.
+    const table = buildWorld(level).group;
+    for (const m of mats) expect(m.transparent).toBe(true);
+    for (let i = 0; i < 120; i++) updateFades(w, 'street', 1 / 60);
+    for (const m of mats) expect(m.opacity).toBeCloseTo(FADED_OPACITY, 2);
+    for (let i = 0; i < 120; i++) updateFades(w, null, 1 / 60);
+    for (const m of mats) expect(m.opacity).toBeCloseTo(1, 2);
+    let shared = false;
+    table.traverse((o) => { if (o.material && mats.has(o.material)) shared = true; });
+    expect(shared).toBe(false);
+  });
+
+  it("lights a prop's windows with the town's (a stilt house's capiz pane follows the time of day)", () => {
+    const w = buildWorld({ ...level, props: [...level.props, { type: 'stiltHouse', x: 5, z: 12, y: -0.5 }] });
+    expect(w.windowMaterials).toHaveLength(2);
+    expect(w.windowMaterials[1].emissiveIntensity).toBe(0);
+  });
+
+  it("passes a map's zone views through", () => {
+    const w = buildWorld({ ...level, zoneCameras: { street: 'outdoor' } });
+    expect(w.maps.main.zoneCameras).toEqual({ street: 'outdoor' });
+    expect(world.maps.main.zoneCameras).toEqual({});
   });
 
   it('passes zones through', () => {
@@ -126,14 +165,15 @@ describe('buildWorld: maps as regions', () => {
     expect(world.extras).toEqual([{ id: 'cook', costume: 'servant', spot: 'zaguan_entry', map: 'house' }]);
   });
 
-  it('raises a city backdrop behind a map: deterministic, varied, spanning its stretch', () => {
-    const shapes = backdropShapes({ x0: -10, x1: 20, seed: 3 });
-    expect(backdropShapes({ x0: -10, x1: 20, seed: 3 })).toEqual(shapes);
-    expect(shapes[0].x).toBe(-10);
-    expect(shapes.at(-1).x + shapes.at(-1).w).toBeGreaterThanOrEqual(20);
-    expect(new Set(shapes.map((s) => s.kind)).size).toBeGreaterThan(1);
+  it('raises the painted city, hills and sky behind a map, the sky tinted by the frame loop', () => {
     const backdrop = world.maps.street.group.children.find((c) => c.userData.backdrop);
-    expect(backdrop.children.length).toBeGreaterThanOrEqual(shapes.length);
+    const skyline = backdrop.children.find((c) => c.userData.skyline);
+    const sky = backdrop.children.find((c) => c.userData.sky);
+    expect(skyline.position.z).toBeCloseTo(-20);
+    expect(sky.position.z).toBeLessThan(skyline.position.z);
+    expect(skyline.material.map.image.width).toBeGreaterThan(100);
+    expect(world.skyMaterials).toEqual([sky.material]);
+    expect(sky.material.fog).toBe(false);
   });
 
   it('lays a dark ground under each map, past its sides and front but never north of it', () => {

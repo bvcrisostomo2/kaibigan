@@ -1,8 +1,8 @@
 // Plan 2 sandbox: walk around a test street and bahay na bato to check the engine and art.
 // Keys: WASD/arrows move · Shift run · Space/E make a nearby character emote · T time of day
-// · G graphics Low/High · wheel zoom. Replaced by the real game boot in Plan 4.
+// · G graphics Low/High. Replaced by the real game boot in Plan 4.
 import * as THREE from 'three';
-import { createRenderer, WebGLUnavailableError } from '../engine/renderer.js';
+import { createRenderer, WebGLUnavailableError, FOCUS_HEIGHT } from '../engine/renderer.js';
 import { createFollowCamera } from '../engine/camera.js';
 import { createInput, bindKeyboard } from '../engine/input.js';
 import { buildWorld, animateWorld } from '../engine/world.js';
@@ -66,10 +66,6 @@ export async function startSandbox(container) {
   container.appendChild(hud);
 
   window.addEventListener('resize', () => cam.resize(view.resize().width / view.resize().height));
-  container.addEventListener('wheel', (e) => {
-    cam.zoomBy(Math.sign(e.deltaY) * 1.2);
-    e.preventDefault();
-  }, { passive: false });
 
   let timeIndex = 0;
   const fps = createFpsMonitor();
@@ -149,13 +145,14 @@ export async function startSandbox(container) {
     const preset = lighting.preset;
     view.setGrade(preset.grade);
     for (const mat of world.windowMaterials) mat.emissiveIntensity = preset.windows * 0.9;
+    for (const mat of world.skyMaterials) mat.color.set(preset.background);
     const zones = world.collision.zonesAt(player.position.x, player.position.z, player.position.y);
     particles.update(dt, player.position, preset, { outdoors: zones.includes('calle') });
     animateWorld(world, time);
     player.update(dt, cam.camera);
     for (const n of npcs) n.actor.update(dt, cam.camera);
 
-    view.render(scene, cam.camera);
+    view.render(scene, cam.camera, cam.subject.clone().setY(cam.subject.y + FOCUS_HEIGHT));
 
     frames++;
     acc += dt;
@@ -165,7 +162,7 @@ export async function startSandbox(container) {
       acc = 0;
     }
     if (fps.sample(dt) && qualityName === 'high') suggestion = 'Running slowly — press G for Low graphics.';
-    hud.textContent = `Sandbox · ${TIME_ORDER[timeIndex]} · ${qualityName} · ${zones.join(', ') || '—'} · ${fpsText}\nWASD move · Shift run · Space emote · F follow/wait · T time · G graphics · wheel zoom${suggestion ? '\n' + suggestion : ''}`;
+    hud.textContent = `Sandbox · ${TIME_ORDER[timeIndex]} · ${qualityName} · ${zones.join(', ') || '—'} · ${fpsText}\nWASD move · Shift run · Space emote · F follow/wait · T time · G graphics${suggestion ? '\n' + suggestion : ''}`;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

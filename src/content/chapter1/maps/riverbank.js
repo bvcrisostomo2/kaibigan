@@ -48,7 +48,9 @@ export const riverbank = {
     fisherman_bridge: [20.2, 7.2, 0.2],
     boatman_banca: [13.5, 5.2, -0.3],
   },
-  backdrop: { z: -32, x0: -25, x1: 55, seed: 11 },
+  // Intramuros across the Pasig: its wall rises straight from the water's far edge (the river
+  // fronts the north wall), painted small so it reads as distant.
+  backdrop: { z: -6.05, x0: -25, x1: 55, seed: 11, y: -0.6, scale: 0.45 },
   extras: [
     { id: 'washerwoman', costume: 'washerwoman', spot: 'washerwoman_steps', dir: 'down', activity: 'wash' },
     { id: 'fisherman', costume: 'fisherman', spot: 'fisherman_bridge', dir: 'right' },
