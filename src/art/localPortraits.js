@@ -1,8 +1,7 @@
 // Optional, LOCAL-ONLY portrait images (spec §4.1):
 //   local-assets/portraits/<costumeId>_<expression>.png     e.g. player_don_neutral.png
 //
-// local-assets/ is git-ignored: third-party art used as a stand-in must never be committed or
-// deployed. The file list comes from localPortraitsFiles.js, which is imported only on the dev
+// Third-party art used as a stand-in must never be deployed. The file list comes from localPortraitsFiles.js, which is imported only on the dev
 // server, so a production build never bundles these images. A fresh clone has none and keeps the
 // generated portraits.
 import { registerPortrait } from './portraits.js';

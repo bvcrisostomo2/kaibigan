@@ -1,6 +1,6 @@
 // three.js adapters for the generated art: cached DataTextures with crisp (nearest) filtering,
 // and the sprite-sheet registry. A costume's sheet comes from, best first (spec §4.1):
-//   1. a registered override (a git-ignored local sprite set, see localSprites.js)
+//   1. a registered override (a local sprite set, see localSprites.js)
 //   2. a hand-authored character (art/cast/)
 //   3. the procedural painter (art/characters.js)
 import * as THREE from 'three';

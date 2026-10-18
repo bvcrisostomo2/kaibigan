@@ -1,0 +1,40 @@
+// Every kitbash set, built by tools/build-sets.mjs (spec §3). id: the costume (src/art/costumes.js)
+// · set: the folder in local-assets/sprites/ · body, head: pack folders in .packs/ · dress: the
+// dress file in tools/. check: false keeps the main cast, built before the "not just colour" rule,
+// exactly as it is.
+export const CAST = [
+  // ---- The main cast ----
+  { id: 'player_don', set: 'hero_kb', body: 'grady', head: 'grady', dress: 'dress-hero.mjs', check: false },
+  { id: 'ibarra', set: 'ibarra_kb', body: 'kamandol', head: 'studentmale01', dress: 'dress-ibarra.mjs', check: false },
+  { id: 'damaso', set: 'damaso_kb', body: 'ledon', head: 'male12', dress: 'dress-damaso.mjs', check: false },
+  { id: 'sibyla', set: 'sibyla_kb', body: 'ledon', head: 'ledon', dress: 'dress-sibyla.mjs', check: false },
+  { id: 'tiago', set: 'tiago_kb', body: 'male06', head: 'male06', dress: 'dress-tiago.mjs', check: false },
+  { id: 'guevarra', set: 'guevarra_kb', body: 'kraze', head: 'kraze', dress: 'dress-guevarra.mjs', check: false },
+  { id: 'isabel', set: 'isabel_kb', body: 'female10', head: 'female10', dress: 'dress-isabel.mjs', check: false },
+  { id: 'victorina', set: 'victorina_kb', body: 'esmeralda', head: 'esmeralda', dress: 'dress-victorina.mjs', check: false },
+  // ---- The extras (spec: 2026-10-08-extras-sprites-design.md) ----
+  { id: 'sweeper', set: 'sweeper_kb', body: 'male11', head: 'male11', dress: 'dress-sweeper.mjs' },
+  { id: 'cook', set: 'cook_kb', body: 'female09', head: 'female09', dress: 'dress-cook.mjs' },
+  { id: 'maid', set: 'maid_kb', body: 'waiter01', head: 'waiter01', dress: 'dress-maid.mjs' },
+  { id: 'muchacho', set: 'muchacho_kb', body: 'male02', head: 'male02', dress: 'dress-muchacho.mjs' },
+  { id: 'lady_a', set: 'lady_a_kb', body: 'female11', head: 'female11', dress: 'dress-lady_a.mjs' },
+  { id: 'lady_b', set: 'lady_b_kb', body: 'female04', head: 'female04', dress: 'dress-lady_b.mjs' },
+  { id: 'lady_c', set: 'lady_c_kb', body: 'female01', head: 'female01', dress: 'dress-lady_c.mjs' },
+  { id: 'harpist', set: 'harpist_kb', body: 'female02c', head: 'female02c', dress: 'dress-harpist.mjs' },
+  { id: 'cadet', set: 'cadet_kb', body: 'studentmale03', head: 'studentmale03', dress: 'dress-cadet.mjs' },
+  { id: 'foreigner', set: 'foreigner_kb', body: 'studentmale02', head: 'studentmale02', dress: 'dress-foreigner.mjs' },
+  { id: 'guitarist', set: 'guitarist_kb', body: 'male09', head: 'male09', dress: 'dress-guitarist.mjs' },
+  { id: 'violinist', set: 'violinist_kb', body: 'male05', head: 'male05', dress: 'dress-violinist.mjs' },
+  { id: 'vendor', set: 'vendor_kb', body: 'female12', head: 'female12', dress: 'dress-vendor.mjs' },
+  { id: 'washerwoman', set: 'washerwoman_kb', body: 'female07', head: 'female07', dress: 'dress-washerwoman.mjs' },
+  { id: 'cochero', set: 'cochero_kb', body: 'male01', head: 'male01', dress: 'dress-cochero.mjs' },
+  { id: 'passerby_a', set: 'passerby_a_kb', body: 'male13', head: 'male13', dress: 'dress-passerby_a.mjs' },
+  { id: 'passerby_b', set: 'passerby_b_kb', body: 'female03', head: 'female03', dress: 'dress-passerby_b.mjs' },
+  { id: 'boatman', set: 'boatman_kb', body: 'male15', head: 'male15', dress: 'dress-boatman.mjs' },
+  { id: 'fisherman', set: 'fisherman_kb', body: 'thief', head: 'thief', dress: 'dress-fisherman.mjs' },
+  { id: 'tiburcio', set: 'tiburcio_kb', body: 'sanchez', head: 'sanchez', dress: 'dress-tiburcio.mjs' },
+  { id: 'newcomer', set: 'newcomer_kb', body: 'alex', head: 'alex', dress: 'dress-newcomer.mjs' },
+  { id: 'laruja', set: 'laruja_kb', body: 'boy04', head: 'boy04', dress: 'dress-laruja.mjs' },
+  { id: 'servant', set: 'servant_kb', body: 'gen', head: 'gen', dress: 'dress-servant.mjs' },
+  { id: 'player_dona', set: 'dona_kb', body: 'female02', head: 'female02', dress: 'dress-player_dona.mjs' },
+];

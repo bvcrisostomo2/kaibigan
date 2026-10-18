@@ -51,6 +51,28 @@ describe('planAnimations', () => {
   it('knows all eight views', () => {
     expect(Object.keys(VIEW_TO_DIR)).toHaveLength(8);
   });
+
+  it('maps activity folders and mirrors their side views', () => {
+    const plan = planAnimations({ act_sweep_front: ['f1', 'f2'], act_sweep_right: ['r1', 'r2'], act_fan_right_front: ['d'] });
+    expect(plan.act_sweep_down).toEqual({ urls: ['f1', 'f2'], mirror: false });
+    expect(plan.act_sweep_right).toEqual({ urls: ['r1', 'r2'], mirror: false });
+    expect(plan.act_sweep_left).toEqual({ urls: ['r1', 'r2'], mirror: true });
+    expect(plan.act_fan_down_right).toEqual({ urls: ['d'], mirror: false });
+    expect(plan.act_fan_down_left).toEqual({ urls: ['d'], mirror: true });
+  });
+
+  it('keeps a drawn left activity view', () => {
+    const plan = planAnimations({ act_wash_right: ['r'], act_wash_left: ['l'] });
+    expect(plan.act_wash_left).toEqual({ urls: ['l'], mirror: false });
+  });
+
+  it('skips activity folders with an unknown view or a malformed name', () => {
+    expect(planAnimations({ act_sweep_sideways: ['x'], act__front: ['y'], act_front: ['z'] })).toEqual({});
+  });
+
+  it('plans a set that has only activity folders', () => {
+    expect(Object.keys(planAnimations({ act_pole_front: ['a'] }))).toEqual(['act_pole_down']);
+  });
 });
 
 describe('loadLocalSprites', () => {
