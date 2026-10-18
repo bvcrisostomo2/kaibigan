@@ -1,5 +1,5 @@
 // Dialogue portraits (spec §4.1). A costume's portrait comes from, best first:
-//   1. a registered local image (git-ignored local-assets/portraits, dev only; see localPortraits.js).
+//   1. a registered local image (local-assets/portraits, dev only; see localPortraits.js).
 //      An image for the exact expression wins, then the costume's neutral image.
 //   2. a hand-authored character: a head crop of its own front sprite, so it matches the sprite
 //      (the same crop for every expression until the maps gain expression frames)

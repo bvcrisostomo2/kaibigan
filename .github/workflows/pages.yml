@@ -1,6 +1,6 @@
 # Tests, builds and deploys the game to GitHub Pages on every push to main (spec §9).
 # The repository's Settings → Pages → Source must be "GitHub Actions".
-# CI has no local-assets/, so the deployed game always uses the shipped, code-made art.
+# Local art loads only on the dev server, so the deployed game always uses the shipped, code-made art.
 name: Deploy to GitHub Pages
 
 on:
