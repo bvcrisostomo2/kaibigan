@@ -66,8 +66,10 @@ describe('buildWorld: a level without maps is one map', () => {
   it('gives water a shiny, rippling material', () => {
     const water = world.maps.main?.group ?? world.group;
     let mat = null;
-    water.traverse((o) => { if (o.material?.normalMap) mat = o.material; });
+    let mesh = null;
+    water.traverse((o) => { if (o.material?.normalMap) { mat = o.material; mesh = o; } });
     expect(mat).toBeInstanceOf(THREE.MeshPhongMaterial);
+    expect(mesh.receiveShadow).toBe(false); // shadows would lie on the ripples as flat slabs
     expect(mat.shininess).toBeGreaterThan(20);
   });
 
