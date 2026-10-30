@@ -31,6 +31,10 @@ describe('validateContent', () => {
     expect(FEELING_NAMES).toEqual(FEELINGS);
   });
 
+  it("accepts the player, someone in the cast or no one as a line's target", () => {
+    for (const to of ['player', null, miniCast[0].id]) expect(errorsFor((ch) => { ch.dialogues.greet.nodes.a.to = to; })).toEqual([]);
+  });
+
   it('keeps its move list in step with the engine', () => {
     expect(MOVE_NAMES).toEqual(MOVES);
   });
@@ -49,6 +53,7 @@ describe('validateContent', () => {
     ['an unknown speaker', (ch) => { ch.dialogues.greet.nodes.a.who = 'tiyo'; }, "greet.a: speaker 'tiyo' not found"],
     ['a face that is not a feeling', (ch) => { ch.dialogues.greet.nodes.a.face = 'smile'; }, "greet.a: face 'smile' is not a feeling"],
     ['an unknown move', (ch) => { ch.dialogues.greet.nodes.a.move = 'dance'; }, "greet.a: unknown move 'dance'"],
+    ['a target not in the cast', (ch) => { ch.dialogues.greet.nodes.a.to = 'nobody'; }, "greet.a: target 'nobody' not found"],
     ['an unknown glossary term', (ch) => { ch.dialogues.greet.nodes.a.text = '{g:zzz}'; }, "greet.a: glossary term 'zzz' not found"],
     ['an unknown effect', (ch) => { ch.dialogues.greet.nodes.a.effects = { trust: 1 }; }, "greet.a: unknown effect 'trust'"],
     ['an unknown note', (ch) => { ch.dialogues.greet.nodes.a.effects = { note: 'nope' }; }, "greet.a: note 'nope' not found"],

@@ -100,6 +100,7 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
         if (node.text == null && !node.choices) errors.push(`${where}: node has neither text nor choices`);
         if (node.face != null && !FEELING_NAMES.includes(node.face)) errors.push(`${where}: face '${node.face}' is not a feeling`);
         if (node.move != null && !MOVE_NAMES.includes(node.move)) errors.push(`${where}: unknown move '${node.move}'`);
+        if (node.to != null && node.to !== 'player' && !castIds.has(node.to)) errors.push(`${where}: target '${node.to}' not found`);
         checkText(node.text, where);
         checkCondition(node.if, where);
         checkEffects(node.effects, where);

@@ -7,6 +7,12 @@ import { evaluate } from './conditions.js';
 import { applyEffects } from './effects.js';
 import { parseText } from './text.js';
 
+// A line's stable id, e.g. 'k3_seating.h' (Plan 5 spec §4.8): a voice clip of that name can play
+// with it later, and the conversation log keeps lines by it.
+export function lineId(dialogueId, nodeId) {
+  return `${dialogueId}.${nodeId}`;
+}
+
 // Flag set automatically when a dialogue finishes, e.g. 'seen:isabel_greet'.
 export function seenFlag(dialogueId) {
   return `seen:${dialogueId}`;
@@ -47,7 +53,8 @@ export function createDialogue(def, ctx) {
     get done() {
       return done;
     },
-    // { id, who, face, segments, choices: [{ index, segments }] | null }, or null when done.
+    // { id, lineId, who, face, move, to, segments, choices: [{ index, segments }] | null }, or null
+    // when done. `to` is undefined when the line names no target (the default), null for no one.
     current() {
       if (done) return null;
       const node = def.nodes[nodeId];
@@ -55,6 +62,9 @@ export function createDialogue(def, ctx) {
         id: nodeId,
         who: node.who ?? null,
         face: node.face ?? null,
+        lineId: lineId(def.id, nodeId),
+        move: node.move ?? null,
+        to: Object.hasOwn(node, 'to') ? node.to : undefined,
         segments: node.text != null ? parseText(node.text, vars()) : null,
         choices: node.choices
           ? visibleChoices(node).map((c, index) => ({ index, segments: parseText(c.text, vars()) }))
@@ -73,7 +83,7 @@ export function createDialogue(def, ctx) {
       const node = def.nodes[nodeId];
       const choice = node.choices ? visibleChoices(node)[index] : undefined;
       if (!choice) throw new Error(`Dialogue ${def.id}: no choice ${index} at '${nodeId}'`);
-      bus?.emit('dialogue:choice', { id: def.id, node: nodeId, index });
+      bus?.emit('dialogue:choice', { id: def.id, node: nodeId, index, choice: node.choices.indexOf(choice) });
       applyEffects(ctx, choice.effects);
       enter(choice.next ?? null);
     },

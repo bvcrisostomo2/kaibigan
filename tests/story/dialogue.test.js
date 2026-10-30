@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createDialogue, seenFlag } from '../../src/story/dialogue.js';
+import { createDialogue, seenFlag, lineId } from '../../src/story/dialogue.js';
 import { plainText } from '../../src/story/text.js';
 import { createState } from '../../src/story/state.js';
 import { createBus } from '../../src/story/events.js';
@@ -99,6 +99,20 @@ describe('createDialogue', () => {
     expect(() => d.choose(5)).toThrow('no choice 5');
   });
 
+  it('gives each line a stable id and passes its move and target through', () => {
+    const d = createDialogue({ id: 'k', start: 'a', nodes: {
+      a: { who: 'ibarra', text: 'x', move: 'bow', to: 'player', next: 'b' },
+      b: { who: 'ibarra', text: 'y', to: null, next: 'c' },
+      c: { who: 'ibarra', text: 'z', next: null },
+    } }, makeCtx());
+    expect(d.current()).toMatchObject({ lineId: 'k.a', move: 'bow', to: 'player' });
+    d.advance();
+    expect(d.current()).toMatchObject({ lineId: 'k.b', move: null, to: null });
+    d.advance();
+    expect(d.current().to).toBeUndefined(); // no `to`: the default target
+    expect(lineId('k', 'c')).toBe('k.c');
+  });
+
   it('throws on a missing node', () => {
     expect(() => createDialogue({ id: 'bad', start: 'nope', nodes: {} }, makeCtx())).toThrow("node 'nope' not found");
   });
@@ -113,7 +127,7 @@ describe('createDialogue', () => {
     expect(events.filter(([t]) => t.startsWith('dialogue:'))).toEqual([
       ['dialogue:node', { id: 'damaso_test', node: 'a' }],
       ['dialogue:node', { id: 'damaso_test', node: 'c' }],
-      ['dialogue:choice', { id: 'damaso_test', node: 'c', index: 1 }],
+      ['dialogue:choice', { id: 'damaso_test', node: 'c', index: 1, choice: 2 }], // visible 1 is the third choice
       ['dialogue:end', { id: 'damaso_test' }],
     ]);
   });
