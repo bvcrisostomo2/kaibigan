@@ -49,6 +49,7 @@ export const EN = {
   'journal.notesCount': '{found} of {total} found',
   'journal.feelings': 'Things you sense',
   'journal.empty': 'Nothing yet.',
+  'journal.conversationEmpty': 'No one has spoken yet.',
   'journal.close': 'Close',
 
   'toast.journal': 'Journal updated',

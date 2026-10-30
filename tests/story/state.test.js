@@ -4,7 +4,7 @@ import { createState, hasFlag, addUnique, serialize, deserialize, SAVE_VERSION }
 describe('createState', () => {
   it('starts with zeroed meters and empty lists', () => {
     const s = createState({ name: 'Andres', title: 'Don' });
-    expect(s).toMatchObject({ name: 'Andres', title: 'Don', tiwala: 0, hinala: 0, flags: [], chapter: 1, beat: null, checkpoint: 0, version: SAVE_VERSION });
+    expect(s).toMatchObject({ name: 'Andres', title: 'Don', tiwala: 0, hinala: 0, flags: [], log: [], chapter: 1, beat: null, checkpoint: 0, version: SAVE_VERSION });
   });
 
   it('accepts Doña and rejects unknown titles', () => {
@@ -32,6 +32,19 @@ describe('serialize / deserialize', () => {
     s.affinity.guevarra = 1;
     s.beat = 'ch1_arrive';
     expect(deserialize(serialize(s))).toEqual({ state: s });
+  });
+
+  it('keeps the conversation log', () => {
+    const s = createState({ name: 'Maria' });
+    s.log.push(['k3_seating', 'a'], ['k3_table_talk', 'p', 1]);
+    expect(deserialize(serialize(s)).state.log).toEqual([['k3_seating', 'a'], ['k3_table_talk', 'p', 1]]);
+  });
+
+  it('loads a save without a log as an empty log', () => {
+    const old = createState({ name: 'Ana' });
+    delete old.log; // an autosave from before Plan 5b
+    expect(deserialize(JSON.stringify(old)).state.log).toEqual([]);
+    expect(deserialize(JSON.stringify({ ...old, log: 'oops' })).state.log).toEqual([]);
   });
 
   it('reports corrupt JSON', () => {

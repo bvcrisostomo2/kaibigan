@@ -178,7 +178,7 @@ export function createGameUi({ views, ctx, content, codes, settings, talkers = N
 
   // ---- Journal --------------------------------------------------------------------------------
   function renderJournal() {
-    const v = journalView(state, { cast, notes, hints });
+    const v = journalView(state, { cast, notes, hints, dialogues: chapter.dialogues });
     views.journal.show({
       ...v,
       tab: journalTab,
@@ -187,6 +187,7 @@ export function createGameUi({ views, ctx, content, codes, settings, talkers = N
       countLabel: t('journal.notesCount', { found: v.found, total: v.total }),
       feelingsLabel: t('journal.feelings'),
       emptyLabel: t('journal.empty'),
+      conversationEmptyLabel: t('journal.conversationEmpty'),
       closeLabel: t('journal.close'),
     }, {
       onTab(id) {

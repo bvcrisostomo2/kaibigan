@@ -201,6 +201,7 @@ describe('stateFromCode', () => {
     expect(s.flags).toEqual(['ch1_defied_damaso', 'ch1_honest', 'seen:greet']);
     expect(s.notes).toEqual(['note_indio', 'note_tinola']);
     expect(s.affinity).toEqual({ guevarra: 2, isabel: -1 });
+    expect(s.log).toEqual([]); // a save code can't carry the conversation log
   });
 
   it('never lets restore flags override a choice the code stores', () => {
