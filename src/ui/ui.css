@@ -159,8 +159,8 @@
   min-height: 132px;
   cursor: pointer;
 }
-.ui-cameo { flex: none; width: 112px; height: 112px; border-radius: 50%; overflow: hidden; border: 3px solid var(--edge); background: #d9c39a; }
-.ui-cameo .ui-portrait { width: 100%; height: 100%; display: block; }
+.ui-cameo { flex: none; width: 112px; height: 112px; }
+.ui-dialogue-box .ui-log-button { position: absolute; right: 8px; top: 6px; }
 .ui-dialogue-body { flex: 1; min-width: 0; position: relative; }
 .ui-nameplate { display: inline-block; background: var(--wax); color: var(--wax-ink); font-weight: bold; font-size: 14px; letter-spacing: 0.04em; padding: 2px 12px; border-radius: 2px; margin-bottom: 6px; }
 .ui-dialogue-text { margin: 0; font-size: 18px; }
@@ -170,6 +170,45 @@
 .ui-choice { width: 100%; text-align: left; background: none; border: none; border-left: 3px solid transparent; padding: 3px 10px; cursor: pointer; font-size: 16px; }
 .ui-choice.is-on, .ui-choice:hover { border-left-color: var(--wax); background: rgba(122, 31, 31, 0.1); }
 .ui-next { position: absolute; right: 0; bottom: -4px; color: var(--wax); animation: ui-bob 1s ease-in-out infinite; }
+
+/* Portraits: a hexagon with a dark rim (Plan 5b) */
+.ui-hex { clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); background: var(--edge); }
+.ui-hex .ui-portrait { display: block; width: 100%; height: 100%; clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); background: #d9c39a; transform: scale(0.94); }
+
+/* Speech bubbles (Plan 5 spec §4.4): placed by gameUi; the portrait and name sit over the corner */
+.ui-bubble { position: absolute; width: min(360px, calc(100% - 16px)); box-sizing: border-box; padding: 40px 0 0 26px; cursor: pointer; pointer-events: auto; }
+.ui-bubble-paper { position: relative; padding: 12px 30px 12px 62px; min-height: 52px; border-radius: 10px; }
+.ui-bubble-paper .ui-dialogue-text { font-size: 17px; line-height: 1.35; }
+.ui-bubble-paper .ui-next { right: 10px; bottom: 2px; }
+.ui-bubble-paper .ui-log-button { position: absolute; right: 4px; top: 2px; }
+.ui-bubble-face { position: absolute; left: 0; top: 0; width: 80px; height: 80px; }
+.ui-bubble-name { position: absolute; left: 76px; top: 14px; margin: 0; }
+.ui-bubble-tail { position: absolute; width: 0; height: 0; }
+.ui-bubble-tail::before, .ui-bubble-tail::after { content: ''; position: absolute; border: solid transparent; }
+.ui-bubble-tail.is-bottom { bottom: 0; }
+.ui-bubble-tail.is-bottom::before { left: -11px; top: 0; border-width: 13px 11px 0; border-top-color: var(--edge); }
+.ui-bubble-tail.is-bottom::after { left: -8px; top: -1px; border-width: 10px 8px 0; border-top-color: var(--paper); }
+.ui-bubble-tail.is-top { top: 40px; }
+.ui-bubble-tail.is-top::before { left: -11px; bottom: 0; border-width: 0 11px 13px; border-bottom-color: var(--edge); }
+.ui-bubble-tail.is-top::after { left: -8px; bottom: -1px; border-width: 0 8px 10px; border-bottom-color: var(--paper); }
+.ui-bubble-tail.is-left { left: 26px; }
+.ui-bubble-tail.is-left::before { top: -11px; right: 0; border-width: 11px 13px 11px 0; border-right-color: var(--edge); }
+.ui-bubble-tail.is-left::after { top: -8px; right: -1px; border-width: 8px 10px 8px 0; border-right-color: var(--paper); }
+.ui-bubble-tail.is-right { right: 0; }
+.ui-bubble-tail.is-right::before { top: -11px; left: 0; border-width: 11px 0 11px 13px; border-left-color: var(--edge); }
+.ui-bubble-tail.is-right::after { top: -8px; left: -1px; border-width: 8px 0 8px 10px; border-left-color: var(--paper); }
+.ui-log-button { background: none; border: none; padding: 2px 6px; color: var(--ink-soft); font-size: 15px; line-height: 1; cursor: pointer; }
+.ui-log-button:hover { color: var(--wax); }
+
+/* The conversation log (journal) */
+.ui-log { display: grid; gap: 8px; }
+.ui-log-entry { display: flex; gap: 10px; align-items: flex-start; }
+.ui-log-face { flex: none; width: 44px; height: 44px; }
+.ui-log-line { min-width: 0; }
+.ui-log-line p { margin: 0; }
+.ui-log-name { font-weight: bold; font-size: 13px; color: var(--wax); }
+.ui-log-entry.is-narration p { font-style: italic; color: var(--ink-soft); }
+.ui-log-entry.is-choice p::before { content: '▸ '; color: var(--wax); }
 
 /* Glossary popup */
 .ui-glossary { display: grid; place-items: center; pointer-events: auto; background: rgba(13, 11, 18, 0.25); }
@@ -222,11 +261,24 @@
   .ui-rotate-phone { animation: none; transform: rotate(-90deg); }
 }
 
+/* Short screens: phones held landscape (Plan 5 spec §4.3) */
+@media (max-height: 500px) {
+  .ui-bubble { width: min(290px, calc(100% - 16px)); padding: 30px 0 0 20px; }
+  .ui-bubble-paper { padding: 8px 26px 8px 46px; min-height: 40px; }
+  .ui-bubble-paper .ui-dialogue-text { font-size: 14px; }
+  .ui-bubble-face { width: 60px; height: 60px; }
+  .ui-bubble-name { left: 58px; top: 8px; font-size: 12px; padding: 1px 8px; }
+  .ui-bubble-tail.is-top { top: 30px; }
+  .ui-bubble-tail.is-left { left: 20px; }
+  .ui-cameo { width: 64px; height: 64px; }
+}
+
 /* Phones */
 @media (max-width: 600px) {
   .ui { font-size: 15px; }
   .ui-dialogue-box { width: 100%; bottom: 0; border-radius: 0; padding: 10px 12px; gap: 10px; min-height: 110px; }
   .ui-cameo { width: 64px; height: 64px; }
+  .ui-log-face { width: 36px; height: 36px; }
   .ui-dialogue-text { font-size: 16px; }
   .ui-location { max-width: 55vw; font-size: 13px; }
   .ui-controls { display: none; }

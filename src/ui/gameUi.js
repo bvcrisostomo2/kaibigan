@@ -74,7 +74,7 @@ export function createGameUi({ views, ctx, content, codes, settings, talkers = N
     onTerm: (id) => openGlossary(id),
     onLog: () => openJournal('conversation'),
   };
-  const renderDialogue = () => views.dialogue.show({ ...dialogue.model.view(), nextLabel: t('dialogue.next') }, dialogueHandlers);
+  const renderDialogue = () => views.dialogue.show({ ...dialogue.model.view(), nextLabel: t('dialogue.next'), logLabel: t('dialogue.log') }, dialogueHandlers);
 
   function showLine() {
     const line = dialogue.runner.current();
