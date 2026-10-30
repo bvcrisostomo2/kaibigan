@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  cellFor, sheetAnims, sheetRows, drawFrame, drawCharacterSheet, drawPortrait, PROPORTIONS,
+  cellFor, sheetAnims, sheetRows, drawFrame, drawCharacterSheet, PROPORTIONS,
   CELL_W, CELL_H, SHEET_COLS, SHEET_ROWS, DIRS, EXPRESSIONS, FEELINGS, GESTURES,
 } from '../../src/art/characters.js';
 import { ACTIVITY_NAMES, ACTIVITY_FRAMES } from '../../src/art/activities.js';
@@ -142,12 +142,9 @@ describe('procedural sprites', () => {
     for (let y = 0; y < CELL_H; y++) for (let x = 0; x < CELL_W; x++) expect(right.get(x, y)).toBe(left.get(CELL_W - 1 - x, y));
   });
 
-  it('builds a full sheet and a pixel portrait', () => {
+  it('builds a full sheet', () => {
     const sheet = drawCharacterSheet(COSTUMES.tiago);
     expect(sheet.width).toBe(CELL_W * SHEET_COLS);
     expect(sheet.height).toBe(CELL_H * SHEET_ROWS);
-    const portrait = drawPortrait(COSTUMES.tiago, 'happy');
-    expect(portrait.width).toBe(64);
-    expect(portrait.coverage()).toBeGreaterThan(500);
   });
 });

@@ -5,7 +5,7 @@
 //   3. the procedural painter (art/characters.js)
 import * as THREE from 'three';
 import { drawSurface, textureSpan } from './textures.js';
-import { drawCharacterSheet, drawPortrait, sheetAnims, sheetRows, CELL_W, CELL_H, SHEET_COLS } from './characters.js';
+import { drawCharacterSheet, sheetAnims, sheetRows, CELL_W, CELL_H, SHEET_COLS } from './characters.js';
 import { COSTUMES } from './costumes.js';
 import { drawHandmadeSheet } from './handmade.js';
 import { HANDMADE } from './cast/index.js';
@@ -104,10 +104,4 @@ export function sheetFor(costumeId) {
 
 export function sheetTexture(costumeId) {
   return sheetFor(costumeId).texture;
-}
-
-export function portraitPixels(costumeId, expression = 'neutral') {
-  const costume = COSTUMES[costumeId];
-  if (!costume) throw new Error(`Unknown costume '${costumeId}'`);
-  return drawPortrait(costume, expression);
 }

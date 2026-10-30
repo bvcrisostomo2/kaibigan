@@ -1,43 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { PixelCanvas } from '../../src/art/pixel.js';
-import { drawPortrait } from '../../src/art/characters.js';
-import { COSTUMES } from '../../src/art/costumes.js';
-import { handmadeFrames } from '../../src/art/handmade.js';
-import { HANDMADE } from '../../src/art/cast/index.js';
-import { headCrop, portraitPixels, portraitSource, registerPortrait, clearPortraits, PORTRAIT_SIZE } from '../../src/art/portraits.js';
+import { drawBust } from '../../src/art/busts.js';
+import { portraitPixels, portraitSource, registerPortrait, clearPortraits, PORTRAIT_SIZE } from '../../src/art/portraits.js';
 import { parsePortraitPath, loadLocalPortraits } from '../../src/art/localPortraits.js';
 
 const same = (a, b) => Buffer.from(a.data).equals(Buffer.from(b.data));
 
-describe('headCrop', () => {
-  it('crops 21×21 around the head and scales it ×3', () => {
-    const frame = new PixelCanvas(48, 64);
-    frame.fillRect(20, 5, 8, 8, '#aa5533'); // head: rows 5–12, columns 20–27
-    frame.fillRect(14, 13, 20, 30, '#223344'); // body below
-    const p = headCrop(frame);
-    expect([p.width, p.height]).toEqual([PORTRAIT_SIZE, PORTRAIT_SIZE]);
-    // Window starts 2 rows above the head (y 3) and 10 columns left of its centre (x 14).
-    expect(p.get((20 - 14) * 3, (5 - 3) * 3)).toBe('#aa5533');
-    expect(p.get((20 - 14) * 3 - 1, (5 - 3) * 3)).toBe(null);
-    expect(p.get(0, 63)).toBe(null); // the 64th row/column stays empty (21 × 3 = 63)
-  });
-
-  it('gives an empty portrait for an empty frame', () => {
-    expect(headCrop(new PixelCanvas(48, 64)).coverage()).toBe(0);
-  });
-});
-
 describe('portraitPixels', () => {
-  it('crops a hand-authored character from its own front sprite', () => {
-    const expected = headCrop(handmadeFrames(HANDMADE.ibarra).idle_down[0]);
-    expect(same(portraitPixels('ibarra', 'angry'), expected)).toBe(true);
-    expect(portraitPixels('ibarra').coverage()).toBeGreaterThan(400);
-  });
-
-  it('uses the procedural portrait otherwise, per expression', () => {
-    expect(same(portraitPixels('damaso', 'angry'), drawPortrait(COSTUMES.damaso, 'angry'))).toBe(true);
+  it('is the bust in the asked feeling', () => {
+    expect(same(portraitPixels('damaso', 'angry'), drawBust('damaso', 'angry'))).toBe(true);
     expect(same(portraitPixels('damaso', 'angry'), portraitPixels('damaso', 'happy'))).toBe(false);
+    expect(portraitPixels('tiago', 'sad').width).toBe(PORTRAIT_SIZE);
+    expect(PORTRAIT_SIZE).toBe(96);
   });
 
   it('reuses a generated portrait instead of redrawing it', () => {

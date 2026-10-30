@@ -1,7 +1,8 @@
 // Dev page (sprites.html): a lineup of every costume (front, side, back, expressions, gestures),
 // then each full sheet and portraits, so the procedural art can be reviewed at a glance.
 import { COSTUMES } from '../art/costumes.js';
-import { drawCharacterSheet, drawFrame, drawPortrait, EXPRESSIONS, GESTURES } from '../art/characters.js';
+import { drawCharacterSheet, drawFrame, EXPRESSIONS, FEELINGS, GESTURES } from '../art/characters.js';
+import { drawBust } from '../art/busts.js';
 
 function toCanvas(pixels, scale) {
   const canvas = document.createElement('canvas');
@@ -38,7 +39,7 @@ for (const [id, costume] of Object.entries(COSTUMES)) {
     ...GESTURES.map((gesture) => ({ gesture })),
   ];
   for (const f of frames) row.append(toCanvas(drawFrame(costume, f), scale));
-  row.append(toCanvas(drawPortrait(costume, 'neutral'), scale / 2));
+  for (const feeling of FEELINGS) row.append(toCanvas(drawBust(id, feeling), scale / 2));
   out.append(row);
 }
 

@@ -771,19 +771,6 @@ export function drawCharacterSheet(costume) {
   return sheet;
 }
 
-// Pixel portrait fallback (3× crop of the expression frame). Plan 3 adds large busts and image portraits.
-export function drawPortrait(costume, expression = 'neutral') {
-  const frame = drawFrame(costume, { expression });
-  const out = new PixelCanvas(64, 64);
-  for (let y = 0; y < 21; y++) {
-    for (let x = 0; x < 21; x++) {
-      const col = frame.get(13 + x, 1 + y);
-      if (col != null) out.fillRect(x * 3, y * 3, 3, 3, col);
-    }
-  }
-  return out;
-}
-
 // Named animation index for the procedural sheet: { name: [{ col, row }, ...] }.
 // Names: walk_<dir> / idle_<dir> / sit_<dir> (dir = down|left|right|up), expression_<name>,
 // gesture_<name>, and act_<activity>_<down|left|right> for the costume's activities.
