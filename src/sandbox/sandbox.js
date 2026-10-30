@@ -13,8 +13,9 @@ import { createParticles } from '../engine/particles.js';
 import { defaultQuality, detectDevice, createFpsMonitor, frameDt, QUALITY } from '../engine/quality.js';
 import { sandboxLevel, sandboxCast } from './sandboxLevel.js';
 import { loadLocalSprites } from '../art/localSprites.js';
+import { FEELINGS, GESTURES } from '../art/characters.js';
 
-const EMOTES = [null, 'smile', 'frown', 'shock', 'angry', 'bow', 'point', 'fan'];
+const EMOTES = [null, ...FEELINGS.slice(1), ...GESTURES];
 
 export async function startSandbox(container) {
   const replaced = await loadLocalSprites();

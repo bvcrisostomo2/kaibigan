@@ -2,7 +2,7 @@
 // (rotating around Y only), animated from a costume's sprite sheet, with a soft blob shadow.
 import * as THREE from 'three';
 import { sheetFor } from '../art/threeTextures.js';
-import { EXPRESSIONS, GESTURES } from '../art/characters.js';
+import { FEELINGS, GESTURES } from '../art/characters.js';
 
 export const PX_PER_UNIT = 40; // character pixels per world unit → 48×64 sprite = 1.2 × 1.6 units
 export const WALK_FPS = 8;
@@ -42,9 +42,12 @@ export function animCandidates({ mode, dir, expression = null, gesture = null, a
   // An activity (an extra sweeping, playing, cooking) is drawn front and side; facing away it
   // falls back to standing idle that way.
   if (activity && mode === 'idle') return [`act_${activity}_${dir}`, `act_${activity}_${side}`, ...(dir === 'up' || away ? [] : [`act_${activity}_down`]), `idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
-  if (gesture) return [`gesture_${gesture}`, 'idle_down'];
-  if (expression) return [`expression_${expression}`, 'idle_down'];
-  if (mode === 'idle') return [`idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
+  // Standing idle the way the actor faces. Expressions and gestures without a frame (every
+  // kitbash set) fall back to it, so a speaker doesn't snap round to face the camera.
+  const idle = [`idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
+  if (gesture) return [`gesture_${gesture}`, ...idle];
+  if (expression) return [`expression_${expression}`, ...idle];
+  if (mode === 'idle') return idle;
   if (mode === 'run') return [`run_${dir}`, `walk_${dir}`, ...(away ? ['run_up', 'walk_up'] : []), `run_${side}`, `walk_${side}`, 'walk_down'];
   return [`walk_${dir}`, `run_${dir}`, ...(away ? ['walk_up'] : []), `walk_${side}`, 'walk_down'];
 }
@@ -184,13 +187,14 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
       state.mode = 'idle';
       state.time = 0;
     },
-    // Show an expression ('smile', ...) or gesture ('bow', 'point', 'fan'); null returns to idle.
+    // Show a feeling ('happy', ...; neutral and feelings without a frame show idle) or a gesture
+    // ('bow', 'point', 'fan'); null returns to idle.
     emote(name) {
       state.expression = null;
       state.gesture = null;
       if (name == null) return;
       if (GESTURES.includes(name)) state.gesture = name;
-      else if (EXPRESSIONS.includes(name)) state.expression = name;
+      else if (FEELINGS.includes(name)) state.expression = name === 'neutral' ? null : name;
       else throw new Error(`Unknown expression or gesture '${name}'`);
     },
     update(dt, camera) {

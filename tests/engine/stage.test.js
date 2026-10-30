@@ -85,8 +85,8 @@ describe('createStage', () => {
     expect(actors.get('tiago').object.visible).toBe(false);
     await stage.run(['show', 'tiago']);
     expect(actors.get('tiago').object.visible).toBe(true);
-    await stage.run(['emote', 'tiago', 'smile']);
-    expect(actors.get('tiago').emote).toHaveBeenCalledWith('smile');
+    await stage.run(['emote', 'tiago', 'happy']);
+    expect(actors.get('tiago').emote).toHaveBeenCalledWith('happy');
   });
 
   it('drives the camera, lighting, audio and fader', async () => {

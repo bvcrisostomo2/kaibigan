@@ -17,7 +17,7 @@ export const openingDialogues = {
     b: { who: 'player', text: 'We used to race across it as children. It was broken then, too.', next: null },
   }),
   k1_isabel: dialogue('k1_isabel', {
-    a: { who: 'isabel', face: 'smile', text: 'Ay, {title} {name}! Welcome, welcome. Come up, come in. Everyone is in the {g:sala}.', effects: { bio: 'isabel' }, next: 'b' },
+    a: { who: 'isabel', face: 'happy', text: 'Ay, {title} {name}! Welcome, welcome. Come up, come in. Everyone is in the {g:sala}.', effects: { bio: 'isabel' }, next: 'b' },
     b: { who: 'isabel', text: 'Will you take a cigar? Some {g:buyo}? No? Then go, go and enjoy yourself.', next: null },
   }),
   // After the crash of a plate somewhere in the house (Plan 5a: the sound plays between the two).

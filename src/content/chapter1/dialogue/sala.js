@@ -19,7 +19,7 @@ export const salaDialogues = {
     a: { who: 'narrator', text: 'A tall, elderly lieutenant of the {g:guardia_civil|Guardia Civil}, with an austere face. He talks little, and when he does it is harsh and curt.', effects: { bio: 'guevarra', note: 'note_guardia_civil' }, next: 'b' },
     b: { who: 'guevarra', text: 'San Diego? I was posted there, years ago. I knew some good men in that town.', next: 'c' },
     c: { who: 'player', text: 'You knew Don Rafael Ibarra?', next: 'd' },
-    d: { who: 'guevarra', face: 'frown', text: 'I knew him. Not here, young one. Not tonight.', next: null },
+    d: { who: 'guevarra', face: 'annoyed', text: 'I knew him. Not here, young one. Not tonight.', next: null },
   }),
   k1_portrait: dialogue('k1_portrait', {
     a: { who: 'narrator', text: 'An oil painting of a handsome man in full dress, rigid and erect, straight as the tasselled cane in his stiff, ring-covered fingers. The whole of it seems to say, "Ahem! See how well dressed and how dignified I am!"', effects: { note: 'note_principalia' }, next: 'b' },
@@ -40,7 +40,7 @@ export const salaDialogues = {
   k1_damaso_after: dialogue('k1_damaso_after', {
     a: { who: 'damaso', face: 'angry', if: { flag: 'ch1_defended_indios' }, text: 'You again. From San Diego, are you? Then you should know better than to talk back to your curate.', effects: { bio: 'damaso' }, next: 'b' },
     b: { who: 'damaso', if: { flag: 'ch1_sided_damaso' }, text: 'Ha! There is one sensible head in this room. You see how it is, eh? Twenty years, and they send me off like a stranger.', effects: { bio: 'damaso' }, next: 'c' },
-    c: { who: 'damaso', face: 'frown', if: { all: [{ notFlag: 'ch1_defended_indios' }, { notFlag: 'ch1_sided_damaso' }] }, text: 'What? Can\'t you see I am in no humour for talk?', effects: { bio: 'damaso' }, next: null },
+    c: { who: 'damaso', face: 'annoyed', if: { all: [{ notFlag: 'ch1_defended_indios' }, { notFlag: 'ch1_sided_damaso' }] }, text: 'What? Can\'t you see I am in no humour for talk?', effects: { bio: 'damaso' }, next: null },
   }),
   k1_laruja: dialogue('k1_laruja', {
     a: { who: 'narrator', text: 'Señor Laruja: a very small man with a black beard, and a nose which, to judge from its size, ought not to belong to him.', effects: { bio: 'laruja' }, next: 'b' },
@@ -70,8 +70,8 @@ export const salaDialogues = {
         { text: 'Tease her gently: "In Madrid, are the ruffles also worn so very high?"', effects: { affinity: { victorina: -1 } }, next: 'e' },
       ],
     },
-    d: { who: 'victorina', face: 'smile', text: 'What a charming young person! You must visit us. We are hardly ever among such good company.', next: null },
-    e: { who: 'victorina', face: 'frown', text: 'Hmph! One sees you have never been to Europe.', next: null },
+    d: { who: 'victorina', face: 'happy', text: 'What a charming young person! You must visit us. We are hardly ever among such good company.', next: null },
+    e: { who: 'victorina', face: 'annoyed', text: 'Hmph! One sees you have never been to Europe.', next: null },
   }),
   k1_tiburcio: dialogue('k1_tiburcio', {
     a: { who: 'narrator', text: 'Don Tiburcio de Espadaña, lame and mild, leans on his wife\'s arm. He stammers, and so says as little as he can.', effects: { bio: 'tiburcio' }, next: 'b' },

@@ -8,7 +8,8 @@
 //
 // Sheet layout (8 cols × 6 rows of 48×64 cells):
 //   rows 0–3: directions down, left, right, up — cols 0–3 walk frames, cols 4–5 idle (breathing)
-//   row 4:    front-facing expressions: neutral, smile, frown, shock, angry
+//   row 4:    front-facing expressions: neutral, happy, annoyed, shocked, angry (four of the nine
+//             FEELINGS; the others show on the portrait and through movement only)
 //   row 5:    front-facing gestures: bow, point, fan
 //   row 6:    seated, one frame per direction: down, left, right, up
 //   rows 7+:  one row per activity the costume lists (costume.activities, art/activities.js):
@@ -23,7 +24,9 @@ export const SHEET_ROWS = 7; // before any activity rows (sheetRows(costume) cou
 export const DIRS = ['down', 'left', 'right', 'up'];
 export const WALK_FRAMES = 4;
 export const IDLE_FRAMES = 2;
-export const EXPRESSIONS = ['neutral', 'smile', 'frown', 'shock', 'angry'];
+// The nine feelings a line can carry (Plan 5 spec §4.5), and the ones the sheet draws as frames.
+export const FEELINGS = ['neutral', 'happy', 'content', 'sad', 'angry', 'annoyed', 'shocked', 'thoughtful', 'embarrassed'];
+export const EXPRESSIONS = ['neutral', 'happy', 'annoyed', 'shocked', 'angry'];
 export const GESTURES = ['bow', 'point', 'fan'];
 export const OUTLINE = '#181410';
 
@@ -510,7 +513,7 @@ function drawFace(L, r, head, costume, expression, view) {
       brows(0);
       mouth([[0, 12], [1, 12]], shade(MOUTH, -0.1));
       break;
-    case 'smile':
+    case 'happy':
       for (const x of [Lx, Rx]) {
         set(x - 1, y + 8, EYE);
         set(x, y + 7, EYE);
@@ -519,7 +522,7 @@ function drawFace(L, r, head, costume, expression, view) {
       brows(-1);
       mouth([[-1, 11], [0, 12], [1, 12], [2, 11]]);
       break;
-    case 'frown':
+    case 'annoyed':
       eyes();
       set(Lx - 1, y + 5, brow);
       set(Lx, y + 6, brow);
@@ -527,7 +530,7 @@ function drawFace(L, r, head, costume, expression, view) {
       set(Rx + 1, y + 5, brow);
       mouth([[-1, 13], [0, 12], [1, 12], [2, 13]]);
       break;
-    case 'shock':
+    case 'shocked':
       for (const x of [Lx, Rx]) {
         L.fillRect(x - (x === Lx ? 1 : 0), y + 6, 2, 3, WHITE);
         set(x, y + 7, EYE);

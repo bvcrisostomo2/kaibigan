@@ -5,6 +5,7 @@ import {
   DIRECTIONS, WALK_FPS, IDLE_SECONDS, TURN_SECONDS, ACT_FPS,
 } from '../../src/engine/actors.js';
 import { registerSheet, clearRegisteredSheets } from '../../src/art/threeTextures.js';
+import { FEELINGS } from '../../src/art/characters.js';
 
 afterEach(() => clearRegisteredSheets());
 
@@ -39,9 +40,10 @@ describe('animation choice', () => {
     expect(animCandidates({ mode: 'run', dir: 'right' })).toEqual(['run_right', 'walk_right', 'run_right', 'walk_right', 'walk_down']);
   });
 
-  it('expressions and gestures fall back to standing', () => {
-    expect(animCandidates({ mode: 'walk', dir: 'up', expression: 'smile' })).toEqual(['expression_smile', 'idle_down']);
-    expect(animCandidates({ mode: 'idle', dir: 'up', gesture: 'bow' })).toEqual(['gesture_bow', 'idle_down']);
+  it('expressions and gestures fall back to standing, keeping the way the actor faces', () => {
+    expect(animCandidates({ mode: 'idle', dir: 'left', expression: 'sad' })).toEqual(['expression_sad', 'idle_left', 'idle_left', 'idle_down']);
+    expect(animCandidates({ mode: 'walk', dir: 'up', expression: 'happy' })).toEqual(['expression_happy', 'idle_up', 'idle_up', 'idle_down']);
+    expect(animCandidates({ mode: 'idle', dir: 'up_right', gesture: 'bow' })).toEqual(['gesture_bow', 'idle_up_right', 'idle_up', 'idle_right', 'idle_down']);
   });
 
   it('seated actors keep their seat through expressions, falling back to standing idle without seated art', () => {
@@ -178,8 +180,10 @@ describe('createActor', () => {
   it('emotes and rejects unknown emotes and directions', () => {
     registerSheet('test', sheet());
     const a = createActor({ id: 'a', costume: 'test' });
-    a.emote('smile');
+    for (const f of FEELINGS) a.emote(f);
+    a.emote('bow');
     a.emote(null);
+    expect(() => a.emote('smile')).toThrow("Unknown expression or gesture 'smile'");
     expect(() => a.emote('wink')).toThrow("Unknown expression or gesture 'wink'");
     expect(() => a.face('north')).toThrow("Bad direction 'north'");
   });

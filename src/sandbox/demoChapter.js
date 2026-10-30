@@ -66,7 +66,7 @@ export const demoChapter = {
       b: { who: 'player', text: 'Ibarra lands today. He wrote that he would come to the dinner.', next: null },
     }),
     demo_ibarra: line('demo_ibarra', {
-      a: { who: 'ibarra', face: 'smile', text: '{name}! Seven years, and you look exactly the same.', effects: { bio: 'ibarra' }, next: 'b' },
+      a: { who: 'ibarra', face: 'happy', text: '{name}! Seven years, and you look exactly the same.', effects: { bio: 'ibarra' }, next: 'b' },
       b: { who: 'ibarra', text: 'Tell me honestly. People look away when I mention my father. Is something wrong?', next: 'c' },
       c: {
         who: 'player',
@@ -76,7 +76,7 @@ export const demoChapter = {
         ],
       },
       d: { who: 'ibarra', text: 'Later, then. I will hold you to it.', next: null },
-      e: { who: 'ibarra', face: 'frown', text: 'I see.', next: null },
+      e: { who: 'ibarra', face: 'annoyed', text: 'I see.', next: null },
     }),
     demo_ibarra_again: line('demo_ibarra_again', {
       a: { who: 'ibarra', text: 'Go on in. I will follow when I can.', next: null },
@@ -85,7 +85,7 @@ export const demoChapter = {
       a: { who: 'guevarra', text: 'Good evening, {title}. The {g:zaguan|zaguán} is through that door; the guests are upstairs in the {g:sala}.', effects: { bio: 'guevarra' }, next: null },
     }),
     demo_isabel: line('demo_isabel', {
-      a: { who: 'isabel', face: 'smile', text: 'Welcome, welcome! Go up, {title} {name}, everyone is in the {g:sala}.', effects: { bio: 'isabel', note: 'note_bahay_na_bato' }, next: null },
+      a: { who: 'isabel', face: 'happy', text: 'Welcome, welcome! Go up, {title} {name}, everyone is in the {g:sala}.', effects: { bio: 'isabel', note: 'note_bahay_na_bato' }, next: null },
     }),
     demo_damaso: line('demo_damaso', {
       a: { who: 'damaso', face: 'angry', text: 'I know the {g:indio|indios} better than anyone in this room. Twenty years I lived among them!', effects: { bio: 'damaso' }, next: 'b' },
@@ -101,7 +101,7 @@ export const demoChapter = {
       d: { who: 'damaso', face: 'angry', text: 'Respect? You young people learn nothing in your schools!', next: null },
     }),
     demo_tiago: line('demo_tiago', {
-      a: { who: 'tiago', face: 'smile', text: 'Ah, {title} {name}! Ibarra will be here any moment. Eat, eat!', effects: { bio: 'tiago' }, next: null },
+      a: { who: 'tiago', face: 'happy', text: 'Ah, {title} {name}! Ibarra will be here any moment. Eat, eat!', effects: { bio: 'tiago' }, next: null },
     }),
     demo_victorina: line('demo_victorina', {
       a: { who: 'victorina', text: 'Is this not the latest fashion from Madrid? Nobody here understands such things.', effects: { bio: 'victorina' }, next: null },

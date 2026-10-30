@@ -37,12 +37,12 @@ describe('portraitPixels', () => {
 
   it('uses the procedural portrait otherwise, per expression', () => {
     expect(same(portraitPixels('damaso', 'angry'), drawPortrait(COSTUMES.damaso, 'angry'))).toBe(true);
-    expect(same(portraitPixels('damaso', 'angry'), portraitPixels('damaso', 'smile'))).toBe(false);
+    expect(same(portraitPixels('damaso', 'angry'), portraitPixels('damaso', 'happy'))).toBe(false);
   });
 
   it('reuses a generated portrait instead of redrawing it', () => {
     expect(portraitPixels('damaso', 'angry')).toBe(portraitPixels('damaso', 'angry'));
-    expect(portraitPixels('ibarra', 'smile')).toBe(portraitPixels('ibarra', 'smile'));
+    expect(portraitPixels('ibarra', 'happy')).toBe(portraitPixels('ibarra', 'happy'));
   });
 
   it('throws for an unknown costume', () => {
@@ -54,13 +54,13 @@ describe('portraitSource', () => {
   beforeEach(() => clearPortraits());
 
   it('prefers a local image for the expression, then the neutral image, then generated pixels', () => {
-    expect(portraitSource('isabel', 'smile').kind).toBe('pixels');
+    expect(portraitSource('isabel', 'happy').kind).toBe('pixels');
     registerPortrait('isabel', 'neutral', '/isabel_neutral.png');
-    expect(portraitSource('isabel', 'smile')).toEqual({ kind: 'image', url: '/isabel_neutral.png' });
-    registerPortrait('isabel', 'smile', '/isabel_smile.png');
-    expect(portraitSource('isabel', 'smile')).toEqual({ kind: 'image', url: '/isabel_smile.png' });
+    expect(portraitSource('isabel', 'happy')).toEqual({ kind: 'image', url: '/isabel_neutral.png' });
+    registerPortrait('isabel', 'happy', '/isabel_happy.png');
+    expect(portraitSource('isabel', 'happy')).toEqual({ kind: 'image', url: '/isabel_happy.png' });
     clearPortraits();
-    expect(portraitSource('isabel', 'smile').kind).toBe('pixels');
+    expect(portraitSource('isabel', 'happy').kind).toBe('pixels');
   });
 });
 
@@ -71,15 +71,18 @@ describe('local portraits', () => {
     expect(parsePortraitPath('/local-assets/portraits/player_don_angry.png')).toEqual({ costumeId: 'player_don', expression: 'angry' });
     expect(parsePortraitPath('damaso_neutral.PNG')).toEqual({ costumeId: 'damaso', expression: 'neutral' });
     expect(parsePortraitPath('damaso_laughing.png')).toBe(null);
+    expect(parsePortraitPath('a/damaso_embarrassed.png')).toEqual({ costumeId: 'damaso', expression: 'embarrassed' });
+    expect(parsePortraitPath('a/player_dona_content.png')).toEqual({ costumeId: 'player_dona', expression: 'content' });
+    expect(parsePortraitPath('a/damaso_smile.png')).toBe(null); // the old face names are gone
     expect(parsePortraitPath('_neutral.png')).toBe(null);
     expect(parsePortraitPath('notes.txt')).toBe(null);
   });
 
   it('registers the images it is given and skips badly named files', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const loaded = await loadLocalPortraits({ urls: { '/local-assets/portraits/isabel_smile.png': '/u/1.png', '/local-assets/portraits/oops.png': '/u/2.png' } });
-    expect(loaded).toEqual(['isabel_smile']);
-    expect(portraitSource('isabel', 'smile')).toEqual({ kind: 'image', url: '/u/1.png' });
+    const loaded = await loadLocalPortraits({ urls: { '/local-assets/portraits/isabel_happy.png': '/u/1.png', '/local-assets/portraits/oops.png': '/u/2.png' } });
+    expect(loaded).toEqual(['isabel_happy']);
+    expect(portraitSource('isabel', 'happy')).toEqual({ kind: 'image', url: '/u/1.png' });
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
   });

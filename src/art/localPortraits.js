@@ -5,13 +5,16 @@
 // server, so a production build never bundles these images. A fresh clone has none and keeps the
 // generated portraits.
 import { registerPortrait } from './portraits.js';
-import { EXPRESSIONS } from './characters.js';
+import { FEELINGS } from './characters.js';
+
+// Longest first, so a name ending in one feeling never matches a shorter one inside it.
+const SUFFIXES = [...FEELINGS].sort((a, b) => b.length - a.length);
 
 // '…/player_don_angry.png' → { costumeId: 'player_don', expression: 'angry' }, else null.
 export function parsePortraitPath(path) {
   const m = /([^/\\]+)\.png$/i.exec(path);
   if (!m) return null;
-  for (const expression of EXPRESSIONS) {
+  for (const expression of SUFFIXES) {
     const suffix = `_${expression}`;
     if (m[1].endsWith(suffix) && m[1].length > suffix.length) {
       return { costumeId: m[1].slice(0, -suffix.length), expression };
