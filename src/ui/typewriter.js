@@ -28,6 +28,21 @@ export function segmentsLength(segments) {
   return segments.reduce((n, s) => n + s.text.length, 0);
 }
 
+// The text after the first `count` characters: what is still to be typed.
+export function pendingSegments(segments, count) {
+  const out = [];
+  let skip = count;
+  for (const s of segments) {
+    if (skip >= s.text.length) {
+      skip -= s.text.length;
+      continue;
+    }
+    out.push({ ...s, text: s.text.slice(skip) });
+    skip = 0;
+  }
+  return out;
+}
+
 // The first `count` characters of parsed text segments; a glossary term cut short stays a term.
 export function revealSegments(segments, count) {
   const out = [];

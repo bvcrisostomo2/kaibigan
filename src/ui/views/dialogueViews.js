@@ -28,7 +28,15 @@ export function createDialogueView(root) {
 
   const portrait = (cls) => vm.speaker.costume && h('div', { class: `ui-hex ${cls}` }, portraitImage(vm.speaker.costume, vm.face));
   const nextMark = () => !vm.typing && !vm.choices && h('span', { class: 'ui-next', title: vm.nextLabel, 'aria-label': vm.nextLabel }, '▾');
-  const logButton = () => h('button', { type: 'button', class: 'ui-log-button', title: vm.logLabel, 'aria-label': vm.logLabel, onclick: stop(() => handlers.onLog()) }, '☰');
+  // It gives up focus once clicked, so Space and Enter go back to the conversation, not to it.
+  const logButton = () => h('button', {
+    type: 'button', class: 'ui-log-button', title: vm.logLabel, 'aria-label': vm.logLabel,
+    onclick: (e) => {
+      e.stopPropagation();
+      e.currentTarget.blur();
+      handlers.onLog();
+    },
+  }, '☰');
 
   function bottomBox() {
     const narrator = vm.speaker.kind === 'narrator';
@@ -49,12 +57,13 @@ export function createDialogueView(root) {
   function speechBubble(p, measuring = false) {
     const along = p.tail.side === 'left' || p.tail.side === 'right';
     return h('div', {
-      class: `ui-bubble is-${p.mode}`,
+      class: `ui-bubble is-${p.mode}${measuring ? ' is-measuring' : ''}`,
       style: { left: `${p.x}px`, top: `${p.y}px`, visibility: measuring ? 'hidden' : '' },
       onclick: () => handlers.onConfirm(),
     },
     h('div', { class: 'ui-paper ui-bubble-paper' },
-      h('p', { class: 'ui-dialogue-text' }, textNodes(vm.segments, handlers.onTerm)),
+      h('p', { class: 'ui-dialogue-text' }, textNodes(vm.segments, handlers.onTerm),
+        vm.pending.length > 0 && h('span', { class: 'ui-pending', 'aria-hidden': 'true' }, vm.pending.map((seg) => seg.text).join(''))),
       nextMark(),
       logButton()),
     h('span', { class: `ui-bubble-tail is-${p.tail.side}`, style: along ? { top: `${p.tail.at}px` } : { left: `${p.tail.at}px` } }),
@@ -62,10 +71,13 @@ export function createDialogueView(root) {
     h('div', { class: 'ui-nameplate ui-bubble-name' }, vm.speaker.name));
   }
 
+  // A speech line whose speaker can't be placed shows in the box, with an unseen copy of its
+  // bubble kept beside it so the bubble's size is current when the speaker comes into view.
   function draw() {
     if (!vm) return;
     if (vm.style === 'bubble' && !placed) s.render(speechBubble(NOWHERE, true));
-    else s.render(vm.style === 'bubble' && placement ? speechBubble(placement) : bottomBox());
+    else if (vm.style === 'bubble' && placement) s.render(speechBubble(placement));
+    else s.render(bottomBox(), vm.style === 'bubble' && speechBubble(NOWHERE, true));
   }
 
   return {
