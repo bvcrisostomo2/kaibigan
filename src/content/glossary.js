@@ -12,4 +12,8 @@ export const GLOSSARY = [
   { id: 'morisqueta', title: 'morisqueta', body: 'Plain boiled rice, the everyday staple.' },
   { id: 'vice_regal_patron', title: 'Vice-Regal Patron', body: 'The Governor-General, who as the King\'s representative also held authority over the Church in the colony.' },
   { id: 'tinola', title: 'tinola', body: 'A soup of chicken with ginger and squash or green papaya.' },
+  { id: 'cura', title: 'cura', body: 'Spanish for a parish priest. In most towns of the islands the cura was a Spanish friar, and the most powerful man in town.' },
+  { id: 'anak', title: 'anak', body: 'Tagalog for "child", said fondly to anyone younger.' },
+  { id: 'kaibigan', title: 'kaibigan', body: 'Tagalog for "friend".' },
+  { id: 'salamat', title: 'salamat', body: 'Tagalog for "thank you".' },
 ];

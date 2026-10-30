@@ -1,31 +1,32 @@
-// Kabanata II, "Si Crisostomo Ibarra" (spec §3.3). The book's lines are adapted from Rizal's
-// Chapter II in the public-domain Charles Derbyshire translation (1912). The added beat (Ibarra
-// sees the player first) and the player's lines are original and keep Capitan Tiago's promise.
+// Kabanata II, "Si Crisostomo Ibarra" (spec §3.3). The book's lines are condensed from Rizal's
+// Chapter II in the public-domain Charles Derbyshire translation (1912), shortened and given period
+// flavour (Plan 5 spec §4.9). The added beat (Ibarra sees the player first) and the player's lines
+// are original and keep Capitan Tiago's promise.
 const dialogue = (id, nodes) => ({ id, start: 'a', nodes });
 
 export const entranceDialogues = {
   k2_entrance: dialogue('k2_entrance', {
-    a: { who: 'narrator', text: 'The lieutenant starts from his thoughts and takes two steps forward. Fray Dámaso looks as if turned to stone. Capitan Tiago has come in, leading by the hand a young man dressed in deep mourning.', next: 'b' },
-    b: { who: 'tiago', text: 'Good evening, gentlemen! Good evening, Padre! I have the honour of presenting Don Crisostomo Ibarra, the son of my late friend. He has just arrived from Europe, and I went to meet him.', effects: { bio: 'tiago' }, next: 'c' },
-    c: { who: 'narrator', text: 'At the name, exclamations go round the room. But before he can greet anyone, the young man\'s eyes find yours.', next: 'd' },
-    d: { who: 'ibarra', face: 'happy', text: '{name}! Of every face in Manila, yours first. Seven years, and you haven\'t changed at all.', effects: { bio: 'ibarra' }, next: 'e' },
-    e: { who: 'player', text: 'Crisostomo. Welcome home.', next: 'f' },
-    f: { who: 'ibarra', text: 'Later you must tell me everything. My father\'s letters stopped a year ago, and nobody writes me a straight word. You will, I know.', next: 'g' },
-    g: { who: 'player', text: 'Later. Tonight, they are all waiting to meet you.', next: 'h' },
-    h: { who: 'narrator', text: 'Capitan Tiago\'s warning sits in your throat. Ibarra squeezes your hand and turns to the room.', next: 'i' },
-    i: { who: 'ibarra', face: 'happy', text: 'What! The curate of my native town! Padre Dámaso, my father\'s intimate friend!', next: 'j' },
-    j: { who: 'narrator', text: 'Every look in the room turns to the Franciscan, who does not move.', next: 'k' },
-    k: { who: 'ibarra', text: 'Pardon me. Perhaps I am mistaken.', next: 'l' },
-    l: { who: 'damaso', face: 'annoyed', text: 'You are not mistaken. But your father was never an intimate friend of mine.', next: 'm' },
-    m: { who: 'guevarra', text: 'Young man, are you the son of Don Rafael Ibarra?', next: 'n' },
-    n: { who: 'guevarra', text: 'Welcome back to your country! And may you be happier in it than your father was. I knew him well: he was one of the worthiest and most honourable men in the Philippines.', next: 'o' },
-    o: { who: 'ibarra', text: 'Sir, the praise you give my father removes my doubts about the manner of his death, of which I, his son, am still ignorant.', next: 'p' },
-    p: { who: 'narrator', text: 'The old soldier\'s eyes fill with tears. He turns away quickly and withdraws, and Ibarra is left alone in the middle of the room.', next: 'q' },
-    q: { who: 'narrator', text: 'He bows to the ladies along the wall, who do not dare to answer. Then he turns to the men.', next: 'r' },
-    r: { who: 'ibarra', text: 'Gentlemen, in Germany, when a stranger finds himself with no one to introduce him, he gives his name himself. Allow me. My name is Juan Crisostomo Ibarra y Magsalin.', next: null },
+    a: { who: 'narrator', text: 'The lieutenant steps forward. Fray Dámaso goes still as stone. Capitan Tiago comes in, leading a young man in deep mourning.', next: 'b' },
+    b: { who: 'tiago', face: 'happy', move: 'bow', to: null, text: 'Good evening, señores! Padre! May I present Don Crisostomo Ibarra, son of my late friend, just home from Europe!', effects: { bio: 'tiago' }, next: 'c' },
+    c: { who: 'narrator', text: "His name runs round the room. But the young man's eyes find yours first.", next: 'd' },
+    d: { who: 'ibarra', face: 'happy', to: 'player', text: "{name}! Of all the faces in Manila, yours first. Seven years, and you haven't changed.", effects: { bio: 'ibarra' }, next: 'e' },
+    e: { who: 'player', face: 'happy', text: 'Crisostomo. Welcome home, {g:kaibigan}.', next: 'f' },
+    f: { who: 'ibarra', face: 'thoughtful', text: "Later you must tell me everything. Father's letters stopped a year ago, and no one gives me a straight answer. You will.", next: 'g' },
+    g: { who: 'player', face: 'sad', text: "Later. They're all waiting to meet you.", next: 'h' },
+    h: { who: 'narrator', text: "Capitan Tiago's warning sticks in your throat. Ibarra squeezes your hand and turns to the room.", next: 'i' },
+    i: { who: 'ibarra', face: 'happy', to: 'damaso', text: "But this is the {g:cura} of my hometown! Padre Dámaso, my father's dear friend!", next: 'j' },
+    j: { who: 'narrator', text: "Every eye turns to the Franciscan. He doesn't move.", next: 'k' },
+    k: { who: 'ibarra', face: 'embarrassed', to: 'damaso', text: "Forgive me. Perhaps I'm mistaken.", next: 'l' },
+    l: { who: 'damaso', face: 'annoyed', text: "You're not mistaken. But your father was never a friend of mine.", next: 'm' },
+    m: { who: 'guevarra', face: 'thoughtful', to: 'ibarra', text: 'Joven, are you the son of Don Rafael Ibarra?', next: 'n' },
+    n: { who: 'guevarra', face: 'sad', to: 'ibarra', text: '¡Bienvenido! Welcome home, and may you be happier here than your father was. He was one of the most honourable men in these islands.', next: 'o' },
+    o: { who: 'ibarra', face: 'sad', text: 'Señor, your words ease my doubts about how he died. I, his son, still do not know.', next: 'p' },
+    p: { who: 'narrator', text: "The old soldier's eyes fill. He turns away quickly, leaving Ibarra alone in the middle of the room.", next: 'q' },
+    q: { who: 'narrator', text: "He bows to the ladies along the wall. They don't dare answer.", next: 'r' },
+    r: { who: 'ibarra', move: 'bow', to: null, text: 'Señores, in Germany a stranger with no one to present him presents himself. My name is Juan Crisostomo Ibarra y Magsalin.', next: null },
   }),
   k2_dinner_call: dialogue('k2_dinner_call', {
-    a: { who: 'servant', text: 'Dinner is served!', next: 'b' },
-    b: { who: 'narrator', text: 'A waiter from the café La Campana announces it, and the guests file out toward the table in the {g:caida|caída}: the women, especially the Filipinas, with great hesitation.', next: null },
+    a: { who: 'servant', face: 'happy', to: null, text: '¡La cena! Dinner is served!', next: 'b' },
+    b: { who: 'narrator', text: 'A waiter from the café La Campana. The guests drift toward the table in the {g:caida|caída}, the Filipinas most hesitant of all.', next: null },
   }),
 };
