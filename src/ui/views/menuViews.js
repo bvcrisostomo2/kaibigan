@@ -36,8 +36,8 @@ export function createJournalView(root) {
         h('div', { class: 'ui-page-body' }, vm.tab === 'notes' ? notes : vm.tab === 'conversation' ? conversation : characters)));
       // The conversation opens at its latest line.
       if (vm.tab === 'conversation') {
-        const body = s.el.querySelector('.ui-page');
-        body.scrollTop = body.scrollHeight;
+        const body = s.el.querySelector('.ui-log');
+        if (body) body.scrollTop = body.scrollHeight;
       }
     },
     hide: () => s.hide(),

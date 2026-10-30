@@ -201,7 +201,7 @@
 .ui-log-button:hover { color: var(--wax); }
 
 /* The conversation log (journal) */
-.ui-log { display: grid; gap: 8px; }
+.ui-log { display: grid; gap: 8px; max-height: min(60vh, 440px); overflow-y: auto; padding-right: 6px; }
 .ui-log-entry { display: flex; gap: 10px; align-items: flex-start; }
 .ui-log-face { flex: none; width: 44px; height: 44px; }
 .ui-log-line { min-width: 0; }
