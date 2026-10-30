@@ -9,7 +9,8 @@
 //   checkpoint      { id, beat }         a beat with a checkpoint number was entered
 //   dialogue:start  { id }               the director opened dialogue `id`
 //   dialogue:node   { id, node }         dialogue `id` entered node `node`
-//   dialogue:choice { id, node, index }  the player chose visible choice `index` at `node`
+//   dialogue:choice { id, node, index, choice }  the player chose visible choice `index` at `node`
+//                                        (`choice`: its place among all the node's choices)
 //   dialogue:end    { id }               dialogue `id` finished (its seen: flag is already set)
 //   interact        { target }           the player pressed Talk on `target`
 //   chapter:end     { chapter }          the chapter's endChapter action ran

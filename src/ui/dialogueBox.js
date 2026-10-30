@@ -1,6 +1,6 @@
 // The dialogue box (spec §4.2): who is speaking, the typed-out text and the choice cursor.
 // Pure: gameUi.js feeds it the runner's lines and turns its answers into runner calls.
-import { createTypewriter, revealSegments, segmentsLength } from './typewriter.js';
+import { createTypewriter, revealSegments, pendingSegments, segmentsLength } from './typewriter.js';
 import { wrapIndex } from './cursor.js';
 
 // A node's `who` → { kind: 'npc' | 'player' | 'narrator', name, costume }.
@@ -67,8 +67,13 @@ export function createDialogueBox({ speed = 'normal' } = {}) {
       if (!line) return null;
       return {
         speaker: line.speaker,
+        // A spoken line is a bubble at the speaker; narration and choice prompts use the bottom box.
+        style: line.speaker.kind === 'narrator' ? 'box' : line.choices ? 'choice' : 'bubble',
+        lineId: line.lineId ?? null,
         face: line.face ?? 'neutral',
         segments: revealSegments(line.segments ?? [], typewriter.visible),
+        // The rest of the line, laid out unseen, so a bubble has its full size from the first letter.
+        pending: pendingSegments(line.segments ?? [], typewriter.visible),
         typing: !typewriter.done,
         choices: choicesShown() ? line.choices : null,
         cursor,

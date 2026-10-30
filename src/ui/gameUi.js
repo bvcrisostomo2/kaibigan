@@ -6,14 +6,23 @@
 // Views are injected: DOM views in the game (views/index.js), fakes in tests. Each is
 //   { show(vm, handlers), hide() }   dialogue, glossary, titleCard, kodigo, journal, menu, chapterEnd
 //   { render(vm) }                   hud, toasts, markers
+// The dialogue view also takes place(placement | null) (its bubble's spot; null draws the bottom
+// box) and measure() → { bubble: { w, h }, screen: { w, h } } | null.
+//
+// talkers (from the game) act lines out (Plan 5 spec §4.4, §4.6):
+//   perform(actorId, { actor, feeling, move, target })   play the line's movement
+//   settle(actorId)                                     back to rest when the conversation ends
+//   locate(actorId) → { head, foot, behind } | null      where the speaker is on screen, in CSS px
 //
 // Input arrives as commands named like the engine's presses: 'interact', 'nav_up', 'nav_down',
-// 'nav_left', 'nav_right', 'journal', 'menu', 'toggleControls', 'mute'. command() returns true when
+// 'nav_left', 'nav_right', 'journal', 'log', 'menu', 'toggleControls', 'mute'. command() returns true when
 // the UI used it; an unused 'interact' is the boot loop's cue to call director.interact().
 //
 // trackCheckpointCodes(ctx) must subscribe to the bus before this UI so `codes.latest` is fresh
 // when the 'checkpoint' event reaches the Kodigo panel.
 import { createDialogueBox, speakerFor } from './dialogueBox.js';
+import { createTalk } from './talk.js';
+import { placeBubble } from './bubble.js';
 import { glossaryEntry } from './glossary.js';
 import { createTitleCards } from './titleCard.js';
 import { createToasts } from './toasts.js';
@@ -26,12 +35,15 @@ import { t } from './strings.js';
 
 export const KODIGO_SECONDS = 20;
 const never = () => new Promise(() => {});
+const NO_TALKERS = { perform() {}, settle() {}, locate: () => null };
 
-export function createGameUi({ views, ctx, content, codes, settings, emote = () => {}, onSettings = () => {}, onAction = () => {} }) {
+export function createGameUi({ views, ctx, content, codes, settings, talkers = NO_TALKERS, onSettings = () => {}, onAction = () => {} }) {
   const { state, bus } = ctx;
   const { chapter, cast, glossary, notes, hints } = content;
   let current = { ...settings };
-  let dialogue = null; // { runner, model, resolve, reject, emoted }
+  let dialogue = null; // { runner, model, resolve, reject, moved, actor, placed }
+  // Who spoke last, kept across conversations until the player changes map.
+  const talk = createTalk();
   let glossaryOpen = false;
   let journalTab = null;
   let menuCursor = null;
@@ -49,7 +61,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
   const renderHud = () => views.hud.render(hudView({ ...hud, location: hud.place ?? hud.location }));
   const renderToasts = () => views.toasts.render(toasts.items);
   const resumeTyping = () => {
-    if (dialogue && !glossaryOpen && menuCursor == null) dialogue.model.pause(false);
+    if (dialogue && !glossaryOpen && menuCursor == null && journalTab == null) dialogue.model.pause(false);
   };
 
   // ---- Dialogue -------------------------------------------------------------------------------
@@ -60,20 +72,36 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     },
     onChoice: (index) => answer(dialogue?.model.pick(index)),
     onTerm: (id) => openGlossary(id),
+    onLog: () => openJournal('conversation'),
   };
-  const renderDialogue = () => views.dialogue.show({ ...dialogue.model.view(), nextLabel: t('dialogue.next') }, dialogueHandlers);
+  const renderDialogue = () => views.dialogue.show({ ...dialogue.model.view(), nextLabel: t('dialogue.next'), logLabel: t('dialogue.log') }, dialogueHandlers);
 
   function showLine() {
     const line = dialogue.runner.current();
     if (!line) return finishDialogue();
     const speaker = speakerFor(line.who, { cast, state });
     dialogue.model.setLine({ ...line, speaker });
-    const actor = speaker.kind === 'player' ? 'player' : speaker.kind === 'npc' ? line.who : null;
-    if (actor) {
-      emote(actor, line.face && line.face !== 'neutral' ? line.face : null);
-      dialogue.emoted.add(actor);
+    const cue = talk.line(line);
+    dialogue.actor = cue?.actor ?? null;
+    if (cue) {
+      talkers.perform(cue.actor, cue);
+      dialogue.moved.add(cue.actor);
     }
+    dialogue.placed = undefined;
     renderDialogue();
+    placeDialogue();
+  }
+
+  // The bubble follows its speaker: placed again whenever the speaker or the screen moved. A line
+  // that isn't a bubble, or a speaker who can't be located, gets the bottom box (null).
+  function placeDialogue() {
+    const vm = dialogue.model.view();
+    const size = vm.style === 'bubble' && dialogue.actor ? views.dialogue.measure() : null;
+    const p = size ? placeBubble({ anchor: talkers.locate(dialogue.actor), size: size.bubble, screen: size.screen }) : null;
+    const key = JSON.stringify(p);
+    if (key === dialogue.placed) return;
+    dialogue.placed = key;
+    views.dialogue.place(p);
   }
 
   function closeDialogue() {
@@ -81,7 +109,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     dialogue = null;
     closeGlossary();
     views.dialogue.hide();
-    for (const actor of d.emoted) emote(actor, null);
+    for (const actor of d.moved) talkers.settle(actor);
     return d;
   }
   const finishDialogue = () => closeDialogue().resolve();
@@ -91,8 +119,10 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     if (!result || !dialogue) return;
     try {
       if (result.type === 'finish') return renderDialogue();
-      if (result.type === 'choose') dialogue.runner.choose(result.index);
-      else dialogue.runner.advance();
+      if (result.type === 'choose') {
+        dialogue.runner.choose(result.index);
+        talk.chose();
+      } else dialogue.runner.advance();
       showLine();
     } catch (err) {
       failDialogue(err);
@@ -103,7 +133,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     if (disposed) return never();
     if (dialogue) return Promise.reject(new Error('A dialogue is already open'));
     return new Promise((resolve, reject) => {
-      dialogue = { runner, model: createDialogueBox({ speed: current.textSpeed }), resolve, reject, emoted: new Set() };
+      dialogue = { runner, model: createDialogueBox({ speed: current.textSpeed }), resolve, reject, moved: new Set(), actor: null, placed: undefined };
       if (menuCursor != null) dialogue.model.pause(true);
       try {
         showLine();
@@ -148,7 +178,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
 
   // ---- Journal --------------------------------------------------------------------------------
   function renderJournal() {
-    const v = journalView(state, { cast, notes, hints });
+    const v = journalView(state, { cast, notes, hints, dialogues: chapter.dialogues });
     views.journal.show({
       ...v,
       tab: journalTab,
@@ -157,6 +187,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
       countLabel: t('journal.notesCount', { found: v.found, total: v.total }),
       feelingsLabel: t('journal.feelings'),
       emptyLabel: t('journal.empty'),
+      conversationEmptyLabel: t('journal.conversationEmpty'),
       closeLabel: t('journal.close'),
     }, {
       onTab(id) {
@@ -166,14 +197,18 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
       onClose: closeJournal,
     });
   }
-  function openJournal() {
-    journalTab = JOURNAL_TABS[0];
+  // Over a conversation the journal pauses it (opened from J, L or the bubble's log button).
+  function openJournal(tab = JOURNAL_TABS[0]) {
+    if (glossaryOpen || menuCursor != null) return;
+    journalTab = tab;
+    dialogue?.model.pause(true);
     renderJournal();
   }
   function closeJournal() {
     if (journalTab == null) return;
     journalTab = null;
     views.journal.hide();
+    resumeTyping();
   }
 
   // ---- Esc menu -------------------------------------------------------------------------------
@@ -319,18 +354,22 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
       if (cmd === 'nav_left' || cmd === 'nav_right') {
         journalTab = nextTab(journalTab, cmd === 'nav_left' ? -1 : 1);
         renderJournal();
-      } else if (cmd === 'journal' || cmd === 'menu' || cmd === 'interact') closeJournal();
+      } else if (cmd === 'journal' || cmd === 'log' || cmd === 'menu' || cmd === 'interact') closeJournal();
       return true;
     }
     if (dialogue) {
       if ((cmd === 'nav_up' || cmd === 'nav_down') && dialogue.model.move(cmd === 'nav_up' ? -1 : 1)) renderDialogue();
       else if (cmd === 'interact') answer(dialogue.model.confirm());
+      else if (cmd === 'journal' || cmd === 'log') openJournal('conversation');
       else if (cmd === 'menu') openMenu();
       return true;
     }
     switch (cmd) {
       case 'journal':
         openJournal();
+        return true;
+      case 'log':
+        openJournal('conversation');
         return true;
       case 'menu':
         openMenu();
@@ -360,6 +399,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
       if (disposed) return;
       if (!Number.isFinite(dt) || dt < 0) dt = 0;
       if (dialogue?.model.update(dt)) renderDialogue();
+      if (dialogue) placeDialogue();
       cards.update(dt);
       renderCard();
       if (toasts.update(dt)) renderToasts();
@@ -377,6 +417,7 @@ export function createGameUi({ views, ctx, content, codes, settings, emote = () 
     setPlace(place) {
       if (disposed) return;
       hud.place = place?.name ? place : null;
+      talk.reset(); // a new map: no one spoke here yet
       renderHud();
     },
     // A brief notice from the game, such as the low frame-rate suggestion (spec §7).

@@ -2,7 +2,8 @@
 // (rotating around Y only), animated from a costume's sprite sheet, with a soft blob shadow.
 import * as THREE from 'three';
 import { sheetFor } from '../art/threeTextures.js';
-import { EXPRESSIONS, GESTURES } from '../art/characters.js';
+import { FEELINGS, GESTURES } from '../art/characters.js';
+import { motionAt, MOVE_SECONDS } from './motion.js';
 
 export const PX_PER_UNIT = 40; // character pixels per world unit → 48×64 sprite = 1.2 × 1.6 units
 export const WALK_FPS = 8;
@@ -42,9 +43,12 @@ export function animCandidates({ mode, dir, expression = null, gesture = null, a
   // An activity (an extra sweeping, playing, cooking) is drawn front and side; facing away it
   // falls back to standing idle that way.
   if (activity && mode === 'idle') return [`act_${activity}_${dir}`, `act_${activity}_${side}`, ...(dir === 'up' || away ? [] : [`act_${activity}_down`]), `idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
-  if (gesture) return [`gesture_${gesture}`, 'idle_down'];
-  if (expression) return [`expression_${expression}`, 'idle_down'];
-  if (mode === 'idle') return [`idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
+  // Standing idle the way the actor faces. Expressions and gestures without a frame (every
+  // kitbash set) fall back to it, so a speaker doesn't snap round to face the camera.
+  const idle = [`idle_${dir}`, ...(away ? ['idle_up'] : []), `idle_${side}`, 'idle_down'];
+  if (gesture) return [`gesture_${gesture}`, ...idle];
+  if (expression) return [`expression_${expression}`, ...idle];
+  if (mode === 'idle') return idle;
   if (mode === 'run') return [`run_${dir}`, `walk_${dir}`, ...(away ? ['run_up', 'walk_up'] : []), `run_${side}`, `walk_${side}`, 'walk_down'];
   return [`walk_${dir}`, `run_${dir}`, ...(away ? ['walk_up'] : []), `walk_${side}`, 'walk_down'];
 }
@@ -136,6 +140,42 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
   }
   applyCell();
 
+  // A movement while talking (engine/motion.js), played on the sprite only: the actor's group
+  // never moves, so however lines come, a speaker settles back exactly where they were.
+  let perf = null; // { move, t, dir: { x, z } | null, facing, gesture }
+  function settle() {
+    if (!perf) return;
+    sprite.position.set(0, 0, 0);
+    sprite.rotation.z = 0;
+    sprite.scale.y = 1;
+    if (state.mode === 'sit') state.dir = state.target = perf.facing;
+    else turnTo(perf.facing);
+    if (perf.gesture) state.gesture = null;
+    perf = null;
+  }
+  // Facing away from a target: seated, the side of the chair away from it.
+  function awayFrom(d) {
+    if (state.mode === 'sit') return d.x > 0 ? 'left' : 'right';
+    return dirFromVector(-d.x, -d.z, state.target);
+  }
+  function playMotion(dt) {
+    perf.t += Number.isFinite(dt) ? dt : 0;
+    const m = motionAt(perf.move, perf.t, { seated: state.mode === 'sit' });
+    if (m.done) return settle();
+    const d = perf.dir ?? { x: 0, z: 0 };
+    if (!perf.gesture) {
+      sprite.position.set(d.x * m.toward, m.up, d.z * m.toward);
+      // The camera looks north, so world x is screen x: lean the top toward the target's side.
+      sprite.rotation.z = -m.tilt * (perf.dir ? Math.sign(d.x) || 1 : 1);
+      sprite.scale.y = m.squash;
+    }
+    if (perf.dir) {
+      const want = m.turn ? awayFrom(perf.dir) : perf.facing;
+      if (state.mode === 'sit') state.dir = state.target = want;
+      else if (state.target !== want) turnTo(want);
+    }
+  }
+
   const actor = {
     id,
     costume,
@@ -146,11 +186,28 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
     get mode() { return state.mode; },
     get seated() { return state.mode === 'sit'; },
     get position() { return object.position; },
+    get performing() { return perf != null; },
+    // Whether the sheet has a (non-empty) animation of this name.
+    hasFrame(name) { return (sheet.anims[name]?.length ?? 0) > 0; },
+    // Play a movement toward a target offset { x, z } (or none), settling any still running.
+    // bow, point and fan show the sheet's gesture frame instead, where it has one.
+    perform(move, toward = null) {
+      settle();
+      if (!MOVE_SECONDS[move]) return;
+      const len = toward ? Math.hypot(toward.x, toward.z) : 0;
+      perf = { move, t: 0, dir: len > 1e-6 ? { x: toward.x / len, z: toward.z / len } : null, facing: state.target, gesture: false };
+      if (GESTURES.includes(move) && state.mode !== 'sit' && actor.hasFrame(`gesture_${move}`)) {
+        state.gesture = move;
+        perf.gesture = true;
+      }
+    },
+    settle,
     // Movement this frame decides walk/run/idle and facing.
     // A seated actor stays seated until it moves (or stand() is called).
     setMotion(dx, dz, run = false) {
       const moving = Math.abs(dx) > 1e-6 || Math.abs(dz) > 1e-6;
       if (!moving && state.mode === 'sit') return;
+      if (moving) settle();
       if (moving) state.activity = null;
       const mode = moving ? (run ? 'run' : 'walk') : 'idle';
       if (mode !== state.mode) state.time = 0;
@@ -163,6 +220,7 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
     },
     face(dir) {
       if (!DIRECTIONS.includes(dir)) throw new Error(`Bad direction '${dir}'`);
+      settle();
       turnTo(dir);
       state.expression = null;
       state.gesture = null;
@@ -175,22 +233,25 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
     // Sit facing dir (snapping round, no turn), until stand() or the next movement.
     sit(dir) {
       if (!DIRECTIONS.includes(dir)) throw new Error(`Bad direction '${dir}'`);
+      settle();
       state.mode = 'sit';
       state.time = 0;
       state.dir = state.target = dir;
     },
     stand() {
+      settle();
       if (state.mode !== 'sit') return;
       state.mode = 'idle';
       state.time = 0;
     },
-    // Show an expression ('smile', ...) or gesture ('bow', 'point', 'fan'); null returns to idle.
+    // Show a feeling ('happy', ...; neutral and feelings without a frame show idle) or a gesture
+    // ('bow', 'point', 'fan'); null returns to idle.
     emote(name) {
       state.expression = null;
       state.gesture = null;
       if (name == null) return;
       if (GESTURES.includes(name)) state.gesture = name;
-      else if (EXPRESSIONS.includes(name)) state.expression = name;
+      else if (FEELINGS.includes(name)) state.expression = name === 'neutral' ? null : name;
       else throw new Error(`Unknown expression or gesture '${name}'`);
     },
     update(dt, camera) {
@@ -205,6 +266,7 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
           state.dir = turnToward(state.dir, state.target);
         }
       } else state.turnClock = 0;
+      if (perf) playMotion(dt);
       applyCell();
       // Cylindrical billboard: face the camera around Y only.
       sprite.rotation.y = Math.atan2(camera.position.x - object.position.x, camera.position.z - object.position.z);

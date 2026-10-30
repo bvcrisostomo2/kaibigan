@@ -2,6 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { createInput, bindKeyboard, KEYMAP } from '../../src/engine/input.js';
 
 describe('createInput', () => {
+  it('maps L to the conversation log, once per press', () => {
+    const input = createInput();
+    input.keyDown('KeyL');
+    input.keyDown('KeyL'); // key repeat
+    expect(input.consumePressed()).toEqual(['log']);
+  });
+
   it('turns held keys into a normalised movement vector', () => {
     const input = createInput();
     input.keyDown('KeyD');

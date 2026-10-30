@@ -16,6 +16,7 @@ export function createState({ name = '', title = 'Don' } = {}) {
     notes: [],
     bios: [],
     hintsShown: [],
+    log: [], // the conversation log (story/log.js)
     chapter: 1,
     beat: null,
     checkpoint: 0,
@@ -47,6 +48,8 @@ export function deserialize(json) {
   }
   if (data && typeof data.version === 'number' && data.version !== SAVE_VERSION) return { error: 'version' };
   if (!isStateShape(data)) return { error: 'corrupt' };
+  // Saves from before the conversation log (Plan 5b) load with an empty one.
+  if (!Array.isArray(data.log)) data.log = [];
   return { state: data };
 }
 

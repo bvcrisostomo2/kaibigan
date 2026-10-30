@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  cellFor, sheetAnims, sheetRows, drawFrame, drawCharacterSheet, drawPortrait, PROPORTIONS,
-  CELL_W, CELL_H, SHEET_COLS, SHEET_ROWS, DIRS, EXPRESSIONS, GESTURES,
+  cellFor, sheetAnims, sheetRows, drawFrame, drawCharacterSheet, PROPORTIONS,
+  CELL_W, CELL_H, SHEET_COLS, SHEET_ROWS, DIRS, EXPRESSIONS, FEELINGS, GESTURES,
 } from '../../src/art/characters.js';
 import { ACTIVITY_NAMES, ACTIVITY_FRAMES } from '../../src/art/activities.js';
 import { COSTUMES } from '../../src/art/costumes.js';
@@ -15,11 +15,21 @@ const topRow = (c) => {
   return -1;
 };
 
+describe('feelings', () => {
+  it('names nine feelings and draws four of them (and neutral) as sheet frames', () => {
+    expect(FEELINGS).toEqual(['neutral', 'happy', 'content', 'sad', 'angry', 'annoyed', 'shocked', 'thoughtful', 'embarrassed']);
+    expect(EXPRESSIONS).toEqual(['neutral', 'happy', 'annoyed', 'shocked', 'angry']);
+    expect(EXPRESSIONS.every((e) => FEELINGS.includes(e))).toBe(true);
+    expect(sheetAnims({}).expression_happy).toEqual([{ col: 1, row: 4 }]);
+    expect(sheetAnims({}).expression_smile).toBeUndefined();
+  });
+});
+
 describe('cellFor', () => {
   it('maps directions, modes, expressions and gestures to sheet cells', () => {
     expect(cellFor({ dir: 'left', mode: 'walk', frame: 5 })).toEqual({ col: 1, row: 1 });
     expect(cellFor({ dir: 'up', mode: 'idle', frame: 1 })).toEqual({ col: 5, row: 3 });
-    expect(cellFor({ expression: 'shock' })).toEqual({ col: 3, row: 4 });
+    expect(cellFor({ expression: 'shocked' })).toEqual({ col: 3, row: 4 });
     expect(cellFor({ gesture: 'fan' })).toEqual({ col: 2, row: 5 });
     expect(cellFor({ dir: 'up', mode: 'sit' })).toEqual({ col: 3, row: 6 });
   });
@@ -132,12 +142,9 @@ describe('procedural sprites', () => {
     for (let y = 0; y < CELL_H; y++) for (let x = 0; x < CELL_W; x++) expect(right.get(x, y)).toBe(left.get(CELL_W - 1 - x, y));
   });
 
-  it('builds a full sheet and a pixel portrait', () => {
+  it('builds a full sheet', () => {
     const sheet = drawCharacterSheet(COSTUMES.tiago);
     expect(sheet.width).toBe(CELL_W * SHEET_COLS);
     expect(sheet.height).toBe(CELL_H * SHEET_ROWS);
-    const portrait = drawPortrait(COSTUMES.tiago, 'smile');
-    expect(portrait.width).toBe(64);
-    expect(portrait.coverage()).toBeGreaterThan(500);
   });
 });

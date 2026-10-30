@@ -8,6 +8,7 @@ import { findCheckpoint } from '../../src/story/director.js';
 import { chapterEndView } from '../../src/ui/chapterEnd.js';
 import { buildWorld } from '../../src/engine/world.js';
 import { sheetSource } from '../../src/art/threeTextures.js';
+import { BUST_LOOKS } from '../../src/art/bustLooks.js';
 import { TIME_ORDER } from '../../src/engine/lighting.js';
 import { createHeadlessGame } from '../support/headless.js';
 
@@ -22,13 +23,19 @@ describe('Chapter 1 content', () => {
     expect(errors).toEqual([]);
   });
 
+  it('has a bust matched to the sprite for everyone who speaks, and both players', () => {
+    const speakers = new Set(Object.values(chapter1.dialogues).flatMap((d) => Object.values(d.nodes).map((n) => n.who)));
+    const costumes = [...speakers].filter((w) => w && w !== 'narrator' && w !== 'player').map((w) => cast.find((c) => c.id === w).costume);
+    for (const c of [...costumes, 'player_don', 'player_dona']) expect(BUST_LOOKS[c], c).toBeDefined();
+  });
+
   it('casts known costumes at real spots', () => {
     const world = buildWorld(level);
     for (const c of cast) {
       expect(() => sheetSource(c.costume), c.id).not.toThrow();
       if (c.homeSpot != null) expect(world.spots[c.homeSpot], c.id).toBeDefined();
     }
-  });
+  }, 20000); // building the whole world's textures takes a few seconds when every file runs at once
 
   it('only interacts with cast members, extras, locked doors and the level’s examinables', () => {
     const extras = Object.values(level.maps).flatMap((m) => (m.extras ?? []).map((e) => e.id));

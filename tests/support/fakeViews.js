@@ -29,12 +29,28 @@ function renderer() {
   };
 }
 
+// The dialogue view also places its bubble and reports the bubble's and the screen's size.
+function dialogueScreen() {
+  return Object.assign(screen(), {
+    placement: undefined,
+    places: 0,
+    size: { bubble: { w: 240, h: 90 }, screen: { w: 800, h: 375 } },
+    place(p) {
+      this.placement = p;
+      this.places++;
+    },
+    measure() {
+      return this.visible ? this.size : null;
+    },
+  });
+}
+
 export function fakeViews() {
   return {
     title: screen(),
     letter: screen(),
     code: screen(),
-    dialogue: screen(),
+    dialogue: dialogueScreen(),
     glossary: screen(),
     titleCard: screen(),
     kodigo: screen(),

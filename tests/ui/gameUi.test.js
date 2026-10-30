@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createBus } from '../../src/story/events.js';
 import { createState } from '../../src/story/state.js';
 import { createDirector } from '../../src/story/director.js';
+import { createDialogue } from '../../src/story/dialogue.js';
 import { trackCheckpointCodes, decodeCode } from '../../src/story/saveCode.js';
 import { plainText } from '../../src/story/text.js';
 import { createGameUi, KODIGO_SECONDS } from '../../src/ui/gameUi.js';
@@ -26,25 +27,29 @@ function setup() {
   const bus = createBus({ onError: (e) => { throw e; } });
   const ctx = { state, bus, hints: miniHints };
   const codes = trackCheckpointCodes(ctx); // before the UI, so codes.latest is fresh at 'checkpoint'
-  const emote = vi.fn();
+  // The speakers: every one stands at (400, 200) on an 800×375 screen unless a test moves them.
+  const talkers = { perform: vi.fn(), settle: vi.fn(), locate: vi.fn(() => at(400, 200)) };
   const onSettings = vi.fn();
   const onAction = vi.fn();
   const ui = createGameUi({
-    views, ctx, codes, emote, onSettings, onAction,
+    views, ctx, codes, talkers, onSettings, onAction,
     content: { chapter, cast, glossary: miniGlossary, notes: miniNotes, hints: miniHints },
     settings: defaultSettings('high'),
   });
   const stage = { handles: (type) => ['moveTo', 'setTime', 'emote'].includes(type), run: vi.fn(async () => {}) };
   const director = createDirector({ chapter, ctx, host: composeHost({ stage, ui }) });
-  return { views, state, bus, ctx, codes, ui, director, stage, emote, onSettings, onAction };
+  return { views, state, bus, ctx, codes, ui, director, stage, talkers, onSettings, onAction };
 }
+
+// A speaker's head and feet on screen, as game.js locates them.
+const at = (x, y) => ({ head: { x, y }, foot: { x, y: y + 60 }, behind: false });
 
 // Press Talk until the open dialogue's typing is done (one press finishes a line).
 const say = (ui) => ui.command('interact');
 
 describe('createGameUi: a chapter played through the UI', () => {
   it('shows the title card, then types and advances a dialogue with expressions', async () => {
-    const { views, ui, director, emote } = setup();
+    const { views, ui, director, talkers } = setup();
     let started = false;
     director.start().then(() => (started = true));
     await flush();
@@ -54,7 +59,7 @@ describe('createGameUi: a chapter played through the UI', () => {
     await flush();
     expect(views.titleCard.visible).toBe(false);
     expect(views.dialogue.vm).toMatchObject({ speaker: { kind: 'npc', name: 'Tía Isabel' }, face: 'neutral', typing: true, segments: [] });
-    expect(emote).toHaveBeenCalledWith('isabel', null);
+    expect(talkers.perform).toHaveBeenCalledWith('isabel', { actor: 'isabel', feeling: 'neutral', move: null, target: null });
     ui.update(0.1);
     expect(plainText(views.dialogue.vm.segments)).toBe('Welcom'); // 0.1 s at 60 characters a second
     say(ui); // finish typing
@@ -68,7 +73,7 @@ describe('createGameUi: a chapter played through the UI', () => {
   });
 
   it('opens glossary terms, picks choices with the cursor and ends on the chapter-end card', async () => {
-    const { views, ui, director, emote, state } = setup();
+    const { views, ui, director, talkers, state } = setup();
     director.start();
     await flush();
     ui.update(3.1);
@@ -92,7 +97,7 @@ describe('createGameUi: a chapter played through the UI', () => {
     ui.update(3.1);
     await flush();
     expect(views.dialogue.vm.speaker.name).toBe('Padre Dámaso');
-    expect(emote).toHaveBeenCalledWith('damaso', 'angry');
+    expect(talkers.perform).toHaveBeenCalledWith('damaso', { actor: 'damaso', feeling: 'angry', move: null, target: 'isabel' });
     say(ui);
     say(ui);
     expect(views.dialogue.vm.speaker).toMatchObject({ kind: 'player', name: 'Doña Ana', costume: 'player_dona' });
@@ -104,7 +109,7 @@ describe('createGameUi: a chapter played through the UI', () => {
     say(ui); // "Change the subject with tact."
     await flush();
     expect(state.flags).toContain('ch1_tactful');
-    expect(emote).toHaveBeenCalledWith('damaso', null); // expressions cleared when the dialogue ends
+    expect(talkers.settle).toHaveBeenCalledWith('damaso'); // everyone who moved settles when the dialogue ends
     say(ui);
     say(ui);
     await flush();
@@ -404,5 +409,131 @@ describe('composeHost cutscenes', () => {
     await flush();
     expect(done).toBe(false);
     expect(stage.run).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createGameUi: bubbles and movements', () => {
+  const def = {
+    id: 't',
+    start: 'a',
+    nodes: {
+      a: { who: 'damaso', text: 'One.', next: 'b' },
+      b: { who: 'isabel', face: 'annoyed', text: 'Two.', next: 'n' },
+      n: { who: 'narrator', text: 'Three.', next: 'c' },
+      c: { who: 'player', text: 'Well?', choices: [{ text: 'Yes.', next: 'd' }] },
+      d: { who: 'damaso', text: 'Hm.', next: null },
+    },
+  };
+  const open = (s, d = def) => s.ui.runDialogue(createDialogue(d, s.ctx));
+  const next = (ui) => {
+    say(ui); // finish typing
+    say(ui); // go on
+  };
+
+  it('shows a spoken line as a bubble, narration and choice prompts as boxes', () => {
+    const s = setup();
+    open(s);
+    expect(s.views.dialogue.vm).toMatchObject({ style: 'bubble', lineId: 't.a' });
+    next(s.ui);
+    expect(s.views.dialogue.vm.style).toBe('bubble');
+    next(s.ui);
+    expect(s.views.dialogue.vm.style).toBe('box');
+    next(s.ui);
+    expect(s.views.dialogue.vm.style).toBe('choice');
+  });
+
+  it('cues the speaker with the feeling, move and target of the line', () => {
+    const s = setup();
+    open(s);
+    next(s.ui);
+    expect(s.talkers.perform).toHaveBeenLastCalledWith('isabel', { actor: 'isabel', feeling: 'annoyed', move: null, target: 'damaso' });
+    next(s.ui); // narration moves no one
+    expect(s.talkers.perform).toHaveBeenCalledTimes(2);
+  });
+
+  it('counts the picked choice as the player speaking, and settles everyone who moved at the end', async () => {
+    const s = setup();
+    const done = open(s);
+    next(s.ui); // to Isabel
+    next(s.ui); // to the narration
+    next(s.ui); // to the choice
+    say(s.ui); // the prompt finishes typing
+    say(s.ui); // take the only choice
+    expect(s.talkers.perform).toHaveBeenLastCalledWith('damaso', { actor: 'damaso', feeling: 'neutral', move: null, target: 'player' });
+    next(s.ui);
+    await done;
+    expect(s.talkers.settle).toHaveBeenCalledWith('damaso');
+    expect(s.talkers.settle).toHaveBeenCalledWith('isabel');
+  });
+
+  it('places the bubble at the speaker each frame, only when it moved', () => {
+    const s = setup();
+    open(s);
+    s.ui.update(0.016);
+    expect(s.views.dialogue.placement).toMatchObject({ mode: 'above', x: 280, y: 100 });
+    const places = s.views.dialogue.places;
+    s.ui.update(0.016);
+    expect(s.views.dialogue.places).toBe(places); // nothing moved, nothing redrawn
+    s.talkers.locate.mockReturnValue(at(300, 200));
+    s.ui.update(0.016);
+    expect(s.views.dialogue.placement.x).toBe(180);
+  });
+
+  it("shows a line as a box when the speaker can't be located", () => {
+    const s = setup();
+    s.talkers.locate.mockReturnValue(null);
+    open(s);
+    s.ui.update(0.016);
+    expect(s.views.dialogue.placement).toBeNull();
+  });
+
+  it('places the bubble again when the screen size changes', () => {
+    const s = setup();
+    open(s);
+    s.ui.update(0.016);
+    const before = s.views.dialogue.placement;
+    s.views.dialogue.size = { bubble: { w: 240, h: 90 }, screen: { w: 1280, h: 720 } };
+    s.talkers.locate.mockReturnValue(at(1200, 300));
+    s.ui.update(0.016);
+    expect(s.views.dialogue.placement).not.toEqual(before);
+    expect(s.views.dialogue.placement.x + 240).toBeLessThanOrEqual(1280);
+  });
+
+  it('opens the conversation log over a dialogue and pauses it, from L, J or the bubble', () => {
+    const s = setup();
+    open(s);
+    for (const openLog of [() => s.ui.command('log'), () => s.ui.command('journal'), () => s.views.dialogue.handlers.onLog()]) {
+      openLog();
+      expect(s.views.journal.vm.tab).toBe('conversation');
+      const typed = s.views.dialogue.vm;
+      s.ui.update(5);
+      expect(s.views.dialogue.vm).toBe(typed); // typing paused
+      s.ui.command('journal'); // closes it
+      expect(s.views.journal.visible).toBe(false);
+    }
+    s.ui.update(5);
+    expect(s.views.dialogue.vm.typing).toBe(false); // typing went on
+  });
+
+  it('opens the journal on the conversation outside a dialogue with L', () => {
+    const s = setup();
+    s.ui.command('log');
+    expect(s.views.journal.vm.tab).toBe('conversation');
+  });
+
+  it('forgets the last speaker when the map changes', async () => {
+    const s = setup();
+    const one = { id: 'one', start: 'a', nodes: { a: { who: 'damaso', text: 'x', next: null } } };
+    const two = { id: 'two', start: 'a', nodes: { a: { who: 'isabel', text: 'y', next: null } } };
+    let done = open(s, one);
+    next(s.ui);
+    await done;
+    done = open(s, two);
+    expect(s.talkers.perform).toHaveBeenLastCalledWith('isabel', expect.objectContaining({ target: 'damaso' })); // carried over
+    next(s.ui);
+    await done;
+    s.ui.setPlace({ name: 'The riverbank' });
+    open(s, one);
+    expect(s.talkers.perform).toHaveBeenLastCalledWith('damaso', expect.objectContaining({ target: null }));
   });
 });

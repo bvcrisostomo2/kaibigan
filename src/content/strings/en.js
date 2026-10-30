@@ -39,14 +39,17 @@ export const EN = {
   'hud.time.night': 'Night',
 
   'dialogue.next': 'Next',
+  'dialogue.log': 'Conversation so far',
   'glossary.close': 'Close',
 
   'journal.title': 'Journal',
   'journal.tab.characters': 'Characters',
   'journal.tab.notes': 'Notes',
+  'journal.tab.conversation': 'Conversation',
   'journal.notesCount': '{found} of {total} found',
   'journal.feelings': 'Things you sense',
   'journal.empty': 'Nothing yet.',
+  'journal.conversationEmpty': 'No one has spoken yet.',
   'journal.close': 'Close',
 
   'toast.journal': 'Journal updated',

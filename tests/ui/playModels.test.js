@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createState } from '../../src/story/state.js';
-import { journalView, nextTab, JOURNAL_TABS } from '../../src/ui/journal.js';
+import { journalView, nextTab, conversationEntries, JOURNAL_TABS } from '../../src/ui/journal.js';
 import { chapterEndView } from '../../src/ui/chapterEnd.js';
 import { hudView } from '../../src/ui/hud.js';
 import { markersFor, talkTarget, MARKER_RANGE } from '../../src/ui/markers.js';
@@ -24,6 +24,7 @@ describe('journalView', () => {
       found: 2,
       total: 3,
       feelings: ['You sense eyes on you.'],
+      conversation: [],
     });
   });
 
@@ -34,11 +35,50 @@ describe('journalView', () => {
     expect(JSON.stringify(journalView(state, { cast, notes, hints }))).not.toMatch(/tiwala|hinala|47|59/);
   });
 
+  describe('conversationEntries', () => {
+    const dialogues = {
+      k: {
+        id: 'k',
+        start: 'a',
+        nodes: {
+          a: { who: 'isabel', face: 'happy', text: 'Hello {name}, the {g:tinola}!', next: 'n' },
+          n: { who: 'narrator', text: 'A pause.', next: 'b' },
+          b: { who: 'player', text: 'Well?', choices: [{ text: 'One.' }, { text: 'Two, {title}.' }] },
+          c: { who: 'damaso', text: 'Hm.' },
+        },
+      },
+    };
+    const state = createState({ name: 'Ana', title: 'Doña' });
+    const text = (e) => e.segments.map((s) => s.text).join('');
+
+    it('turns the log into entries with the speaker, feeling and chosen text', () => {
+      const e = conversationEntries([['k', 'a'], ['k', 'n'], ['k', 'b', 1], ['k', 'c']], dialogues, { cast, state });
+      expect(e.map((x) => x.kind)).toEqual(['line', 'narration', 'choice', 'line']);
+      expect(e[0]).toMatchObject({ lineId: 'k.a', name: 'Tía Isabel', costume: null, feeling: 'happy' });
+      expect(text(e[0])).toBe('Hello Ana, the tinola!');
+      expect(e[1]).toMatchObject({ lineId: 'k.n', name: null, feeling: 'neutral' });
+      expect(e[2]).toMatchObject({ lineId: 'k.b', name: 'Doña Ana', costume: 'player_dona' });
+      expect(text(e[2])).toBe('Two, Doña.');
+      expect(e[3].feeling).toBe('neutral');
+    });
+
+    it('skips log entries whose dialogue, node or choice is gone', () => {
+      const e = conversationEntries([['gone', 'a'], ['k', 'zz'], ['k', 'b', 9], ['k', 'b'], ['bad'], 'x', ['k', 'a']], dialogues, { cast, state });
+      expect(e.map((x) => x.lineId)).toEqual(['k.a']);
+    });
+
+    it('shows the conversation in the journal', () => {
+      const s = createState({ name: 'Ana' });
+      s.log.push(['k', 'a']);
+      expect(journalView(s, { cast, notes, hints, dialogues }).conversation).toHaveLength(1);
+    });
+  });
+
   it('cycles tabs', () => {
-    expect(JOURNAL_TABS).toEqual(['characters', 'notes']);
+    expect(JOURNAL_TABS).toEqual(['characters', 'notes', 'conversation']);
     expect(nextTab('characters', 1)).toBe('notes');
-    expect(nextTab('characters', -1)).toBe('notes');
-    expect(nextTab('notes', 1)).toBe('characters');
+    expect(nextTab('characters', -1)).toBe('conversation');
+    expect(nextTab('conversation', 1)).toBe('characters');
   });
 });
 

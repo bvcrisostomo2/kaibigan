@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { wrapIndex } from '../../src/ui/cursor.js';
-import { createTypewriter, revealSegments, segmentsLength, TEXT_SPEEDS } from '../../src/ui/typewriter.js';
+import { createTypewriter, revealSegments, pendingSegments, segmentsLength, TEXT_SPEEDS } from '../../src/ui/typewriter.js';
 import { createDialogueBox, speakerFor } from '../../src/ui/dialogueBox.js';
 import { glossaryEntry } from '../../src/ui/glossary.js';
 import { parseText } from '../../src/story/text.js';
@@ -48,6 +48,13 @@ describe('typewriter', () => {
     expect(revealSegments(segs, 0)).toEqual([]);
     expect(revealSegments(segs, 99)).toEqual(segs);
   });
+
+  it('gives the rest of the text still to type, so the whole line can be laid out from the start', () => {
+    const segs = parseText('I know the {g:indio|indios} well.', { name: '', title: '' });
+    expect(pendingSegments(segs, 13)).toEqual([{ kind: 'term', id: 'indio', text: 'dios' }, ...segs.slice(2)]);
+    expect(pendingSegments(segs, 0)).toEqual(segs);
+    expect(pendingSegments(segs, 99)).toEqual([]);
+  });
 });
 
 describe('speakerFor', () => {
@@ -77,6 +84,27 @@ describe('createDialogueBox', () => {
     expect(box.confirm()).toEqual({ type: 'finish' });
     expect(box.view()).toMatchObject({ typing: false, segments: seg('Twenty years!') });
     expect(box.confirm()).toEqual({ type: 'advance' });
+  });
+
+  it('carries the untyped rest of the line, so the bubble is sized for all of it from the first letter', () => {
+    const box = createDialogueBox({ speed: 'normal' });
+    box.setLine({ id: 'a', who: 'damaso', face: null, segments: seg('Twenty years!'), choices: null, speaker });
+    expect(box.view().pending).toEqual(seg('Twenty years!'));
+    box.update(0.05);
+    expect([...box.view().segments, ...box.view().pending].map((x) => x.text).join('')).toBe('Twenty years!');
+    box.confirm();
+    expect(box.view().pending).toEqual([]);
+  });
+
+  it('draws speech as a bubble, narration as a box and a choice prompt as the choice box', () => {
+    const box = createDialogueBox({ speed: 'instant' });
+    const line = { id: 'a', lineId: 'k.a', who: 'damaso', face: null, segments: seg('x'), choices: null, speaker };
+    box.setLine(line);
+    expect(box.view()).toMatchObject({ style: 'bubble', lineId: 'k.a' });
+    box.setLine({ ...line, who: 'narrator', speaker: { kind: 'narrator', name: null, costume: null } });
+    expect(box.view().style).toBe('box');
+    box.setLine({ ...line, who: 'player', choices: [{ index: 0, segments: seg('Yes.') }] });
+    expect(box.view().style).toBe('choice');
   });
 
   it('shows choices once the text is typed, moves the cursor and picks', () => {

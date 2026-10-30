@@ -13,8 +13,10 @@ import { createParticles } from '../engine/particles.js';
 import { defaultQuality, detectDevice, createFpsMonitor, frameDt, QUALITY } from '../engine/quality.js';
 import { sandboxLevel, sandboxCast } from './sandboxLevel.js';
 import { loadLocalSprites } from '../art/localSprites.js';
+import { FEELINGS, GESTURES } from '../art/characters.js';
+import { movementFor } from '../engine/motion.js';
 
-const EMOTES = [null, 'smile', 'frown', 'shock', 'angry', 'bow', 'point', 'fan'];
+const EMOTES = [null, ...FEELINGS.slice(1), ...GESTURES];
 
 export async function startSandbox(container) {
   const replaced = await loadLocalSprites();
@@ -114,7 +116,9 @@ export async function startSandbox(container) {
       const near = nearestTo(npcs, 1.8);
       if (near) {
         near.emote = (near.emote + 1) % EMOTES.length;
-        near.actor.emote(EMOTES[near.emote]);
+        const name = EMOTES[near.emote];
+        near.actor.emote(name);
+        if (name) near.actor.perform(GESTURES.includes(name) ? name : movementFor(name), { x: player.position.x - near.actor.position.x, z: player.position.z - near.actor.position.z });
       }
     }
 

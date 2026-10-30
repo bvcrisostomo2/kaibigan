@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { sheetFor, sheetSource, registerSheet, clearRegisteredSheets, tileTexture, tileBump, portraitPixels } from '../../src/art/threeTextures.js';
+import { sheetFor, sheetSource, registerSheet, clearRegisteredSheets, tileTexture, tileBump } from '../../src/art/threeTextures.js';
 
 afterEach(() => clearRegisteredSheets());
 
@@ -54,10 +54,5 @@ describe('tile textures and portraits', () => {
     expect(bump.repeat.x).toBeCloseTo(tileTexture('cobble').repeat.x);
     expect(bump.colorSpace).toBe(THREE.NoColorSpace);
     expect(tileBump('capiz')).toBeNull();
-  });
-
-  it('draws pixel portraits for known costumes only', () => {
-    expect(portraitPixels('isabel').width).toBe(64);
-    expect(() => portraitPixels('nobody')).toThrow("Unknown costume 'nobody'");
   });
 });
