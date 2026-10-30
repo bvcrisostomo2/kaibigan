@@ -250,21 +250,13 @@
 /* Dev error banner */
 .ui-banner { inset: 0 0 auto 0; background: #b3261e; color: #fff; padding: 8px 14px; font: 14px system-ui, sans-serif; pointer-events: auto; }
 
-/* Landscape on phones: a touch device held upright shows this over everything (ui/landscape.js). */
-.ui-rotate { display: none; position: fixed; inset: 0; z-index: 100; background: #0d0b12; color: var(--paper); flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 24px; text-align: center; pointer-events: auto; }
-.ui-rotate-phone { width: 44px; height: 76px; border: 3px solid var(--paper); border-radius: 8px; margin-bottom: 18px; animation: ui-rotate-turn 2.4s ease-in-out infinite; }
-.ui-rotate-title { margin: 0; font-size: 20px; }
-.ui-rotate-detail { margin: 0; font-size: 15px; opacity: 0.8; }
-@keyframes ui-rotate-turn { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
-@media (orientation: portrait) and (pointer: coarse) {
-  .ui-rotate { display: flex; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ui-rotate-phone { animation: none; transform: rotate(-90deg); }
+/* Touch screens have no keyboard: no key hints */
+@media (pointer: coarse) {
+  .ui-controls { display: none; }
 }
 
-/* Short screens: phones held landscape (Plan 5 spec §4.3) */
-@media (max-height: 500px) {
+/* Short screens: phones held landscape, or upright with the game turned sideways (index.html) */
+@media (max-height: 500px), (orientation: portrait) and (pointer: coarse) {
   .ui-bubble { width: min(290px, calc(100% - 16px)); padding: 30px 0 0 20px; }
   .ui-bubble-paper { padding: 8px 26px 8px 46px; min-height: 40px; }
   .ui-bubble-paper .ui-dialogue-text { font-size: 14px; }
@@ -275,8 +267,8 @@
   .ui-cameo { width: 64px; height: 64px; }
 }
 
-/* Phones */
-@media (max-width: 600px) {
+/* Narrow windows (phones always play sideways, so these are for a narrow window on a computer) */
+@media (max-width: 600px) and (pointer: fine) {
   .ui { font-size: 15px; }
   .ui-dialogue-box { width: 100%; bottom: 0; border-radius: 0; padding: 10px 12px; gap: 10px; min-height: 110px; }
   .ui-cameo { width: 64px; height: 64px; }

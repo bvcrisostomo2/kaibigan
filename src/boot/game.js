@@ -32,7 +32,7 @@ import { hasFlag } from '../story/state.js';
 import { browserStorage, saveGame } from '../story/save.js';
 import { trackCheckpointCodes } from '../story/saveCode.js';
 import { h } from '../ui/dom.js';
-import { keepLandscape, rotateView } from '../ui/landscape.js';
+import { keepLandscape } from '../ui/landscape.js';
 import { createDomViews } from '../ui/views/index.js';
 import { createTouchView, createBannerView } from '../ui/views/touchView.js';
 import { runFrontScreens } from '../ui/frontScreens.js';
@@ -140,12 +140,9 @@ export async function startGame(container, content) {
   const banner = createBannerView(uiRoot);
   const input = createInput();
   bindKeyboard(input);
-  // Phones play in landscape: locked on the first tap where the browser allows, and a rotate
-  // screen whenever one is held upright (ui/landscape.js).
-  if (device.coarsePointer) {
-    keepLandscape();
-    uiRoot.append(rotateView(h, { title: t('rotate.title'), detail: t('rotate.detail') }));
-  }
+  // Phones play in landscape: locked on the first tap where the browser allows; held upright
+  // anyway, the game turns itself sideways (ui/landscape.js, index.html).
+  if (device.coarsePointer) keepLandscape();
   const touch = device.coarsePointer
     ? createTouchView(uiRoot, {
       labels: { talk: t('touch.talk'), journal: t('touch.journal'), menu: t('touch.menu') },
@@ -277,7 +274,9 @@ export async function startGame(container, content) {
     locate(id) {
       const a = actors.get(id);
       if (!a || !a.object.visible || world.mapAt(a.position) !== currentMap) return null;
-      const { width, height } = container.getBoundingClientRect();
+      // The game's own size: its on-screen box is turned on a phone held upright.
+      const width = container.clientWidth;
+      const height = container.clientHeight;
       const project = (up) => new THREE.Vector3(a.position.x, a.position.y + up, a.position.z).project(cam.camera);
       const px = (p) => ({ x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height });
       const head = project(a.seated ? SEATED_HEAD_HEIGHT : HEAD_HEIGHT);
@@ -342,7 +341,8 @@ export async function startGame(container, content) {
       dialogueFor: (id) => game.director.interactionFor(id),
       seen: (d) => hasFlag(game.ctx.state, seenFlag(d)),
     });
-    const { width, height } = container.getBoundingClientRect();
+    const width = container.clientWidth;
+    const height = container.clientHeight;
     return shown.map((m) => {
       const tg = list.find((x) => x.id === m.id);
       const p = new THREE.Vector3(tg.x, tg.y + tg.height, tg.z).project(cam.camera);

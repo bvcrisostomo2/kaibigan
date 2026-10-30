@@ -8,6 +8,11 @@
       html, body { margin: 0; height: 100%; background: #0d0b12; overflow: hidden; }
       #app { position: fixed; inset: 0; }
       #app canvas { display: block; touch-action: none; }
+      /* A phone held upright (rotation locked, or no landscape lock): the game turns a quarter-turn
+         clockwise and takes the long side as its width (src/ui/landscape.js). */
+      @media (orientation: portrait) and (pointer: coarse) {
+        #app { inset: auto; top: 0; left: 100%; width: 100vh; height: 100vw; width: 100dvh; height: 100dvw; transform-origin: top left; transform: rotate(90deg); }
+      }
       .hud { position: absolute; top: 12px; left: 12px; color: #f3e6cf; font: 13px/1.5 system-ui, sans-serif; white-space: pre; text-shadow: 0 1px 2px #000; pointer-events: none; }
       .fatal { color: #f3e6cf; font: 16px system-ui, sans-serif; padding: 24px; max-width: 520px; }
     </style>
