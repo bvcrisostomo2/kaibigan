@@ -35,7 +35,7 @@ describe('Chapter 1 content', () => {
       expect(() => sheetSource(c.costume), c.id).not.toThrow();
       if (c.homeSpot != null) expect(world.spots[c.homeSpot], c.id).toBeDefined();
     }
-  });
+  }, 20000); // building the whole world's textures takes a few seconds when every file runs at once
 
   it('only interacts with cast members, extras, locked doors and the level’s examinables', () => {
     const extras = Object.values(level.maps).flatMap((m) => (m.extras ?? []).map((e) => e.id));
