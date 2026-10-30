@@ -66,6 +66,7 @@ describe('turnsToPlayer', () => {
     expect(turnsToPlayer(actor('run'))).toBe(false);
     expect(turnsToPlayer(actor('idle', { seated: true }))).toBe(false); // diners keep facing the table
     expect(turnsToPlayer(actor('idle', { visible: false }))).toBe(false);
+    expect(turnsToPlayer({ ...actor('idle'), performing: true })).toBe(false); // acting out a line
   });
 });
 

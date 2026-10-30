@@ -6,6 +6,7 @@ import {
 } from '../../src/engine/actors.js';
 import { registerSheet, clearRegisteredSheets } from '../../src/art/threeTextures.js';
 import { FEELINGS } from '../../src/art/characters.js';
+import { MOVES } from '../../src/engine/motion.js';
 
 afterEach(() => clearRegisteredSheets());
 
@@ -199,5 +200,98 @@ describe('createActor', () => {
     const a = createActor({ id: 'd', costume: 'damaso', position: new THREE.Vector3(1, 2, 3) });
     expect(a.position.toArray()).toEqual([1, 2, 3]);
     expect(a.object.userData.actorId).toBe('d');
+  });
+});
+
+describe('movements while talking', () => {
+  const camera = { position: new THREE.Vector3(0, 10, 10) };
+  const sheet = () => ({
+    texture: new THREE.Texture(), cellW: 48, cellH: 64, cols: 4, rows: 4, footMargin: 2,
+    anims: {
+      idle_down: [{ col: 0, row: 0 }], idle_left: [{ col: 1, row: 0 }], idle_right: [{ col: 2, row: 0 }],
+      walk_down: [{ col: 0, row: 1 }], gesture_bow: [{ col: 3, row: 3 }],
+    },
+  });
+  const atRest = (a) => {
+    expect(a.sprite.position.toArray()).toEqual([0, 0, 0]);
+    expect(a.sprite.rotation.z).toBe(0);
+    expect(a.sprite.scale.y).toBe(1);
+  };
+  const run = (a, seconds) => {
+    for (let t = 0; t < seconds; t += 0.05) a.update(0.05, camera);
+  };
+
+  it('plays a movement on the sprite and settles exactly where it began', () => {
+    registerSheet('test', sheet());
+    const a = createActor({ id: 'a', costume: 'test', dir: 'down' });
+    const start = a.position.clone();
+    a.perform('hop_back', { x: 0, z: -2 });
+    a.update(0.1, camera);
+    expect(a.performing).toBe(true);
+    expect(a.sprite.position.z).toBeGreaterThan(0); // away from a target behind it
+    expect(a.position.equals(start)).toBe(true); // the actor never moves, only its sprite
+    run(a, 3);
+    expect(a.performing).toBe(false);
+    atRest(a);
+    expect(a.facing).toBe('down');
+  });
+
+  it('leans its top toward the target', () => {
+    registerSheet('test', sheet());
+    const a = createActor({ id: 'a', costume: 'test' });
+    a.perform('lean', { x: 3, z: 0 });
+    a.update(0.25, camera);
+    expect(a.sprite.rotation.z).toBeLessThan(0); // a clockwise tilt leans right, toward x > 0
+    expect(a.sprite.position.x).toBeGreaterThan(0);
+  });
+
+  it('turns away for the movement and back to the facing it had', () => {
+    registerSheet('test', sheet());
+    const a = createActor({ id: 'a', costume: 'test', dir: 'left' });
+    a.perform('turn_away', { x: -3, z: 0 });
+    a.update(0.05, camera);
+    expect(a.facing).toBe('right');
+    run(a, 3);
+    expect(a.facing).toBe('left');
+  });
+
+  it('settles the running movement when a new one starts, so fifty quick lines leave no drift', () => {
+    registerSheet('test', sheet());
+    const a = createActor({ id: 'a', costume: 'test' });
+    a.sit('down');
+    const start = a.position.clone();
+    for (let i = 0; i < 50; i++) {
+      a.perform(MOVES[i % MOVES.length], { x: 1, z: 0.5 });
+      a.update(0.03, camera);
+    }
+    a.settle();
+    expect(a.seated).toBe(true);
+    expect(a.facing).toBe('down');
+    expect(a.position.equals(start)).toBe(true);
+    atRest(a);
+  });
+
+  it('stops a movement when the actor walks', () => {
+    registerSheet('test', sheet());
+    const a = createActor({ id: 'a', costume: 'test' });
+    a.perform('bounce', null);
+    a.update(0.1, camera);
+    a.setMotion(1, 0);
+    expect(a.performing).toBe(false);
+    atRest(a);
+  });
+
+  it('shows a gesture frame when the sheet has one, else moves', () => {
+    registerSheet('test', sheet());
+    const a = createActor({ id: 'a', costume: 'test' });
+    expect(a.hasFrame('gesture_bow')).toBe(true);
+    expect(a.hasFrame('gesture_fan')).toBe(false);
+    a.perform('bow', null);
+    a.update(0.1, camera);
+    const uv = cellUV({ col: 3, row: 3 }, 4, 4);
+    expect(a.sprite.material.map.offset.x).toBeCloseTo(uv.offsetX);
+    expect(a.sprite.scale.y).toBe(1); // the frame does the bowing
+    run(a, 3);
+    expect(a.sprite.material.map.offset.x).toBeCloseTo(0); // back to idle_down
   });
 });

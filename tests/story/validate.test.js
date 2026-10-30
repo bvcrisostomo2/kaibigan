@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { validateContent, FEELING_NAMES } from '../../src/story/validate.js';
+import { validateContent, FEELING_NAMES, MOVE_NAMES } from '../../src/story/validate.js';
+import { MOVES } from '../../src/engine/motion.js';
 import { FEELINGS } from '../../src/art/characters.js';
 import { miniChapter, miniCast, miniGlossary, miniNotes, miniHints } from '../fixtures/miniChapter.js';
 import { ENDINGS } from '../../src/content/endings.js';
@@ -30,6 +31,10 @@ describe('validateContent', () => {
     expect(FEELING_NAMES).toEqual(FEELINGS);
   });
 
+  it('keeps its move list in step with the engine', () => {
+    expect(MOVE_NAMES).toEqual(MOVES);
+  });
+
   it('accepts the fixture chapter with no errors', () => {
     expect(validateContent(base()).errors).toEqual([]);
   });
@@ -43,6 +48,7 @@ describe('validateContent', () => {
     ['a missing next node', (ch) => { ch.dialogues.greet.nodes.a.next = 'q'; }, "greet.a → next 'q' not found"],
     ['an unknown speaker', (ch) => { ch.dialogues.greet.nodes.a.who = 'tiyo'; }, "greet.a: speaker 'tiyo' not found"],
     ['a face that is not a feeling', (ch) => { ch.dialogues.greet.nodes.a.face = 'smile'; }, "greet.a: face 'smile' is not a feeling"],
+    ['an unknown move', (ch) => { ch.dialogues.greet.nodes.a.move = 'dance'; }, "greet.a: unknown move 'dance'"],
     ['an unknown glossary term', (ch) => { ch.dialogues.greet.nodes.a.text = '{g:zzz}'; }, "greet.a: glossary term 'zzz' not found"],
     ['an unknown effect', (ch) => { ch.dialogues.greet.nodes.a.effects = { trust: 1 }; }, "greet.a: unknown effect 'trust'"],
     ['an unknown note', (ch) => { ch.dialogues.greet.nodes.a.effects = { note: 'nope' }; }, "greet.a: note 'nope' not found"],

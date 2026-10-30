@@ -46,7 +46,7 @@ export function enteredDoor(world, before, after) {
 
 // Whether a cast member turns to face the player when close: only one who is standing still, so a
 // character walking away (Ibarra leaving the dinner) keeps facing where he walks, and diners keep
-// facing the table.
+// facing the table. Nor one acting out a line (turning away must not be undone).
 export function turnsToPlayer(actor) {
-  return actor.object.visible && !actor.seated && actor.mode === 'idle';
+  return actor.object.visible && !actor.seated && actor.mode === 'idle' && !actor.performing;
 }

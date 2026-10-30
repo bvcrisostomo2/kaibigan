@@ -20,6 +20,8 @@ const SPOT_ACTIONS = ['moveTo', 'teleport', 'sit'];
 const FACINGS = ['down', 'up', 'left', 'right', 'down_left', 'down_right', 'up_left', 'up_right'];
 // A line's feeling (art/characters.js FEELINGS; a test keeps the two in step).
 export const FEELING_NAMES = ['neutral', 'happy', 'content', 'sad', 'angry', 'annoyed', 'shocked', 'thoughtful', 'embarrassed'];
+// A line's movement (engine/motion.js MOVES; a test keeps the two in step).
+export const MOVE_NAMES = ['none', 'still', 'nod', 'shake', 'lean', 'bounce', 'hop_back', 'step_back', 'step', 'head_down', 'turn_away', 'bow', 'point', 'fan'];
 // Flags named like 'ch1_...' are persistent choices and must be stored in save codes.
 const PERSISTENT_FLAG = /^ch\d+_/;
 
@@ -97,6 +99,7 @@ export function validateContent({ chapters, cast, glossary, notes, hints = [], e
         if (node.who != null && !SPEAKERS.includes(node.who) && !castIds.has(node.who)) errors.push(`${where}: speaker '${node.who}' not found`);
         if (node.text == null && !node.choices) errors.push(`${where}: node has neither text nor choices`);
         if (node.face != null && !FEELING_NAMES.includes(node.face)) errors.push(`${where}: face '${node.face}' is not a feeling`);
+        if (node.move != null && !MOVE_NAMES.includes(node.move)) errors.push(`${where}: unknown move '${node.move}'`);
         checkText(node.text, where);
         checkCondition(node.if, where);
         checkEffects(node.effects, where);
