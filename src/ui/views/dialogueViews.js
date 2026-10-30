@@ -28,6 +28,9 @@ export function createDialogueView(root) {
               textNodes(c.segments, null))))),
           !vm.typing && !vm.choices && h('span', { class: 'ui-next', title: vm.nextLabel, 'aria-label': vm.nextLabel }, '▾'))));
     },
+    // Until the bubble is drawn, every line shows in the box.
+    place() {},
+    measure: () => null,
     hide: () => s.hide(),
   };
 }

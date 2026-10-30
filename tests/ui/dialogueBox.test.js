@@ -79,6 +79,17 @@ describe('createDialogueBox', () => {
     expect(box.confirm()).toEqual({ type: 'advance' });
   });
 
+  it('draws speech as a bubble, narration as a box and a choice prompt as the choice box', () => {
+    const box = createDialogueBox({ speed: 'instant' });
+    const line = { id: 'a', lineId: 'k.a', who: 'damaso', face: null, segments: seg('x'), choices: null, speaker };
+    box.setLine(line);
+    expect(box.view()).toMatchObject({ style: 'bubble', lineId: 'k.a' });
+    box.setLine({ ...line, who: 'narrator', speaker: { kind: 'narrator', name: null, costume: null } });
+    expect(box.view().style).toBe('box');
+    box.setLine({ ...line, who: 'player', choices: [{ index: 0, segments: seg('Yes.') }] });
+    expect(box.view().style).toBe('choice');
+  });
+
   it('shows choices once the text is typed, moves the cursor and picks', () => {
     const box = createDialogueBox({ speed: 'instant' });
     const choices = [{ index: 0, segments: seg('Listen.') }, { index: 1, segments: seg('Object.') }, { index: 2, segments: seg('Leave.') }];

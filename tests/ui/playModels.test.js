@@ -35,10 +35,10 @@ describe('journalView', () => {
   });
 
   it('cycles tabs', () => {
-    expect(JOURNAL_TABS).toEqual(['characters', 'notes']);
+    expect(JOURNAL_TABS).toEqual(['characters', 'notes', 'conversation']);
     expect(nextTab('characters', 1)).toBe('notes');
-    expect(nextTab('characters', -1)).toBe('notes');
-    expect(nextTab('notes', 1)).toBe('characters');
+    expect(nextTab('characters', -1)).toBe('conversation');
+    expect(nextTab('conversation', 1)).toBe('characters');
   });
 });
 

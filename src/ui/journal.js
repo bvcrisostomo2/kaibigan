@@ -2,7 +2,7 @@
 // found notes (with the chapter's total) and the lines of felt hints. Never meter values.
 import { wrapIndex } from './cursor.js';
 
-export const JOURNAL_TABS = ['characters', 'notes'];
+export const JOURNAL_TABS = ['characters', 'notes', 'conversation'];
 
 export function journalView(state, { cast, notes, hints }) {
   const characters = state.bios

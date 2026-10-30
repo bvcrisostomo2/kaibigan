@@ -67,6 +67,9 @@ export function createDialogueBox({ speed = 'normal' } = {}) {
       if (!line) return null;
       return {
         speaker: line.speaker,
+        // A spoken line is a bubble at the speaker; narration and choice prompts use the bottom box.
+        style: line.speaker.kind === 'narrator' ? 'box' : line.choices ? 'choice' : 'bubble',
+        lineId: line.lineId ?? null,
         face: line.face ?? 'neutral',
         segments: revealSegments(line.segments ?? [], typewriter.visible),
         typing: !typewriter.done,
