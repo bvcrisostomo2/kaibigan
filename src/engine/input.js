@@ -7,10 +7,10 @@ export const KEYMAP = {
   KeyD: 'right', ArrowRight: 'right',
   ShiftLeft: 'run', ShiftRight: 'run',
   Space: 'interact', KeyE: 'interact', Enter: 'interact',
-  KeyJ: 'journal', KeyH: 'toggleControls', KeyM: 'mute', Escape: 'menu',
+  KeyJ: 'journal', KeyL: 'log', KeyH: 'toggleControls', KeyM: 'mute', Escape: 'menu',
 };
 
-const BUTTONS = new Set(['interact', 'journal', 'toggleControls', 'mute', 'menu']);
+const BUTTONS = new Set(['interact', 'journal', 'log', 'toggleControls', 'mute', 'menu']);
 // Direction keys also queue a 'nav_*' press on every keydown (key repeat included) for menu cursors.
 const NAV = { up: 'nav_up', down: 'nav_down', left: 'nav_left', right: 'nav_right' };
 

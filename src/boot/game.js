@@ -14,6 +14,9 @@ import { createInput, bindKeyboard } from '../engine/input.js';
 import { buildWorld, animateWorld, updateFades } from '../engine/world.js';
 import { createExtras } from '../engine/extras.js';
 import { createActor, dirFromVector, WALK_SPEED, RUN_SPEED, TURN_SECONDS } from '../engine/actors.js';
+import { movementFor } from '../engine/motion.js';
+import { EXPRESSIONS } from '../art/characters.js';
+import { trackLog } from '../story/log.js';
 import { createLighting } from '../engine/lighting.js';
 import { createParticles } from '../engine/particles.js';
 import { createStage } from '../engine/stage.js';
@@ -43,6 +46,8 @@ import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer, enteredDoo
 const LOOK_RANGE = 3; // characters turn to face the player this close
 const MARKER_HEIGHT = 1.9; // world units above a person's feet for "!" / "…"
 const EXAMINE_HEIGHT = 1.2; // above an examinable's spot
+const HEAD_HEIGHT = 1.55; // a standing speaker's head above their feet, where a bubble's tail points
+const SEATED_HEAD_HEIGHT = 1.2;
 const DOOR_FADE = 0.25; // seconds each way through a door
 
 export async function startGame(container, content) {
@@ -200,8 +205,10 @@ export async function startGame(container, content) {
     player.object.visible = true;
     player.stand();
     player.setMotion(0, 0);
+    player.settle();
     player.emote(null);
     for (const n of npcs) {
+      n.actor.settle();
       n.actor.stand();
       n.actor.object.position.copy(n.home);
       n.actor.object.visible = n.onstage;
@@ -250,22 +257,51 @@ export async function startGame(container, content) {
     }
   }
 
+  // The speakers acting out their lines (Plan 5 spec §4.6), and where their heads are on screen
+  // for the bubbles (§4.4).
+  const talkers = {
+    perform(id, cue) {
+      const a = actors.get(id);
+      if (!a) return;
+      const t = cue.target ? actors.get(cue.target) : null;
+      const toward = t?.object.visible ? { x: t.position.x - a.position.x, z: t.position.z - a.position.z } : null;
+      // A sheet that draws the feeling shows it; kitbash sets show it on the portrait only.
+      a.emote(EXPRESSIONS.includes(cue.feeling) && cue.feeling !== 'neutral' ? cue.feeling : null);
+      a.perform(movementFor(cue.feeling, { move: cue.move, seated: a.seated }), toward);
+    },
+    settle(id) {
+      const a = actors.get(id);
+      a?.settle();
+      a?.emote(null);
+    },
+    locate(id) {
+      const a = actors.get(id);
+      if (!a || !a.object.visible || world.mapAt(a.position) !== currentMap) return null;
+      const { width, height } = container.getBoundingClientRect();
+      const project = (up) => new THREE.Vector3(a.position.x, a.position.y + up, a.position.z).project(cam.camera);
+      const px = (p) => ({ x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height });
+      const head = project(a.seated ? SEATED_HEAD_HEIGHT : HEAD_HEIGHT);
+      return { head: px(head), foot: px(project(0)), behind: head.z > 1 };
+    },
+  };
+
   function startGame({ state, beatId }) {
     const bus = createBus({ onError: reportError });
     const ctx = { state, bus, hints };
     const codes = trackCheckpointCodes(ctx); // before the UI, so the Kodigo panel gets the fresh code
     const offSave = bus.on('beat:enter', () => storage && saveGame(storage, state));
+    const stopLog = trackLog(ctx, chapter.dialogues);
     const ui = createGameUi({
       views, ctx, codes, settings,
       content: { chapter, cast, glossary, notes, hints },
-      emote: (id, face) => actors.get(id)?.emote(face),
+      talkers,
       onSettings: applySettings,
       onAction,
     });
     const director = createDirector({ chapter, ctx, host: composeHost({ stage, ui, cutscenes: chapter.cutscenes }) });
     dressPlayer(state.title === 'Doña' ? 'player_dona' : 'player_don');
     input.clear();
-    game = { ctx, codes, ui, director, zone: null, offSave };
+    game = { ctx, codes, ui, director, zone: null, offSave, stopLog };
     const map = world.maps[currentMap];
     if (map) ui.setPlace({ name: map.name, detail: map.detail });
     fader.fadeOut(0);
@@ -278,6 +314,7 @@ export async function startGame(container, content) {
     game.ui.dispose(); // from now on the old director's host never settles (host.js)
     game.codes.stop();
     game.offSave();
+    game.stopLog();
     stage.cancel();
     game = null;
   }
