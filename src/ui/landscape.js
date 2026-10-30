@@ -1,7 +1,8 @@
 // Landscape on phones: the game plays sideways. Where the browser allows it (Android Chrome), the
 // first tap goes full screen and locks the screen to landscape; browsers can only do this from a
-// tap. Where it can't (iPhone Safari has no lock), a phone held upright shows the rotate screen
-// instead (ui.css, .ui-rotate).
+// tap. Wherever the phone is still held upright (iPhone Safari has no lock, or the screen's
+// rotation is locked), the game turns itself a quarter-turn clockwise in CSS (index.html, #app),
+// so it reads sideways with the phone's top to the left.
 
 // Go full screen and lock to landscape. True if it locked; never throws.
 export async function lockLandscape(doc = document, scr = screen) {
@@ -32,10 +33,16 @@ export function keepLandscape(doc = document, scr = screen) {
   });
 }
 
-// The rotate screen: shown by CSS whenever a touch device is held upright.
-export function rotateView(h, { title, detail }) {
-  return h('div', { class: 'ui-rotate', 'aria-live': 'polite' },
-    h('div', { class: 'ui-rotate-phone', 'aria-hidden': 'true' }),
-    h('p', { class: 'ui-rotate-title' }, title),
-    h('p', { class: 'ui-rotate-detail' }, detail));
+// The media query under which index.html turns the game.
+export const TURNED_QUERY = '(orientation: portrait) and (pointer: coarse)';
+
+// Whether the game is drawn turned right now.
+export function isTurned(win = window) {
+  return win.matchMedia?.(TURNED_QUERY).matches ?? false;
+}
+
+// A movement on the screen (pixels, y down) as a movement in the game's own picture: when the game
+// is turned clockwise, down the upright screen is right in the game, and right is up.
+export function unturn(dx, dy, turned) {
+  return turned ? { x: dy, y: 0 - dx } : { x: dx, y: dy }; // 0 - dx: never a negative zero
 }

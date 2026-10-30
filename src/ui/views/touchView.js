@@ -2,6 +2,7 @@
 // top-right. Shown only on touch devices. Drags go through stickVector (touchControls.js).
 import { h } from '../dom.js';
 import { stickVector, STICK_RADIUS } from '../touchControls.js';
+import { isTurned, unturn } from '../landscape.js';
 
 // onMove(x, z) for input.setVirtualMove; onPress(button) for input.press.
 export function createTouchView(root, { labels, onMove, onPress }) {
@@ -27,7 +28,9 @@ export function createTouchView(root, { labels, onMove, onPress }) {
   });
   stick.addEventListener('pointermove', (e) => {
     if (e.pointerId !== pointer) return;
-    const v = stickVector(e.clientX - centre.x, e.clientY - centre.y);
+    // The finger moves on the screen; when the game is drawn turned, turn that back.
+    const d = unturn(e.clientX - centre.x, e.clientY - centre.y, isTurned());
+    const v = stickVector(d.x, d.y);
     knob.style.transform = `translate(${v.x * STICK_RADIUS}px, ${v.z * STICK_RADIUS}px)`;
     onMove(v.x, v.z);
   });
