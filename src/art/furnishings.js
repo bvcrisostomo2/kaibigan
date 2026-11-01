@@ -240,7 +240,10 @@ function rugTexture(color) {
   return toTexture(c);
 }
 function rug({ w = 4, d = 3, color = '#7a2e2e' }) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshLambertMaterial({ map: rugTexture(color) }));
+  // Pulled toward the camera in the depth test: a few hundredths above the floor is too close to
+  // tell apart with a phone's coarser depth buffer, and the two flicker through each other.
+  const mat = new THREE.MeshLambertMaterial({ map: rugTexture(color), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
   m.rotation.x = -Math.PI / 2;
   m.position.y = 0.02;
   m.receiveShadow = true;
