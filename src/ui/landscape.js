@@ -46,3 +46,10 @@ export function isTurned(win = window) {
 export function unturn(dx, dy, turned) {
   return turned ? { x: dy, y: 0 - dx } : { x: dx, y: dy }; // 0 - dx: never a negative zero
 }
+
+// Where a finger at (clientX, clientY) is inside an element whose on-screen box is `rect` (from
+// getBoundingClientRect), in the element's own pixels. Turned clockwise, the element's own top
+// left sits at its box's top right on the screen.
+export function toLocal(clientX, clientY, rect, turned) {
+  return turned ? unturn(clientX - rect.right, clientY - rect.top, true) : unturn(clientX - rect.left, clientY - rect.top, false);
+}
