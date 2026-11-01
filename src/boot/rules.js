@@ -50,3 +50,10 @@ export function enteredDoor(world, before, after) {
 export function turnsToPlayer(actor) {
   return actor.object.visible && !actor.seated && actor.mode === 'idle' && !actor.performing;
 }
+
+// How far the story's clock moves this frame (beats that start "after a while"). Every scene of
+// the chapter happens indoors, so out on the street or the riverbank the clock holds: a scene
+// waits for the player to come back instead of pulling them inside.
+export function storyTime(dt, mapCamera) {
+  return mapCamera === 'outdoor' ? 0 : dt;
+}

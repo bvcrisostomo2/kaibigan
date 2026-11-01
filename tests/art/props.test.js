@@ -16,6 +16,14 @@ describe('props', () => {
     expect(makeProp('balustrade', { w: 6 }).footprint).toEqual({ w: 6, d: 0.3 }); // you can't step off the azotea
   });
 
+  it('draws a rug in front of the floor it lies on, so the two never flicker through each other', () => {
+    let mesh = null;
+    makeProp('rug', { w: 3, d: 2 }).object.traverse((o) => { if (o.isMesh) mesh = o; });
+    expect(mesh.material.polygonOffset).toBe(true);
+    expect(mesh.material.polygonOffsetFactor).toBeLessThan(0);
+    expect(mesh.material.polygonOffsetUnits).toBeLessThan(0);
+  });
+
   it('rotates footprints with odd quarter turns', () => {
     const p0 = makeProp('table', { w: 3, d: 1.2 });
     const p1 = makeProp('table', { w: 3, d: 1.2, rot: 1 });

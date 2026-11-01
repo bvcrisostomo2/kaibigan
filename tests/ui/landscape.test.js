@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { lockLandscape, keepLandscape, isTurned, unturn, TURNED_QUERY } from '../../src/ui/landscape.js';
+import { lockLandscape, keepLandscape, isTurned, unturn, toLocal, TURNED_QUERY } from '../../src/ui/landscape.js';
 
 // A fake document and screen: fullscreen and the orientation lock either work or refuse.
 function fakes({ fullscreen = true, lock = true } = {}) {
@@ -72,5 +72,16 @@ describe('the game turned sideways on a phone held upright', () => {
     expect(unturn(0, 10, true)).toEqual({ x: 10, y: 0 });
     expect(unturn(10, 0, true)).toEqual({ x: 0, y: -10 });
     expect(unturn(3, 4, false)).toEqual({ x: 3, y: 4 });
+  });
+});
+
+describe('toLocal', () => {
+  it("finds where a finger is inside an element, in the game's own picture", () => {
+    // Upright game: the element's on-screen box starts at its top left.
+    expect(toLocal(30, 50, { left: 10, top: 20, right: 110, bottom: 220 }, false)).toEqual({ x: 20, y: 30 });
+    // Turned clockwise: the element's own top left is at the box's top right on the screen.
+    const box = { left: 175, top: 0, right: 375, bottom: 330 };
+    expect(toLocal(375, 0, box, true)).toEqual({ x: 0, y: 0 });
+    expect(toLocal(355, 100, box, true)).toEqual({ x: 100, y: 20 });
   });
 });

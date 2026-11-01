@@ -26,6 +26,9 @@ const tiago = houseFront(13, 27, { door: [19, 21], windows: 4 });
 const westHouse = houseFront(0, 12.6, { door: [5, 6.4], upper: 'wood', windows: 3 });
 const shop = houseFront(27.4, 35, { door: [29.6, 31], windows: 2 });
 const eastHouse = houseFront(38.6, 44, { windows: 1, upper: 'wood' });
+// Past the ends, the street carries on (scenery: seen, never walked).
+const westEnd = houseFront(-15, -0.4, { door: [-8.2, -6.8], windows: 3 });
+const eastEnd = houseFront(44.4, 59, { door: [50.6, 52], upper: 'wood', windows: 3 });
 
 export const street = {
   name: 'Calle Anloague',
@@ -91,7 +94,46 @@ export const street = {
     pawnshop_door: [30.3, 4.6],
     neighbour_door: [5.7, 4.6],
   },
-  backdrop: { z: -30, x0: -20, x1: 64, seed: 7 },
+  backdrop: { z: -30, x0: -40, x1: 84, seed: 7 },
+  // The street past both ends, and a strip of gardens beyond the near wall, so the camera never
+  // looks out on darkness. Look only: the walkable street ends where its floors do.
+  scenery: {
+    floors: [
+      ...[[-16, 16], [44, 16]].flatMap(([x, w]) => [
+        { x, z: 2.8, w, d: 1.9, y: 0, tex: 'adobe' },
+        { x, z: FRONT + 1.2, w, d: 6.3, y: 0, tex: 'cobble' },
+        { x, z: 11, w, d: 3, y: 0, tex: 'adobe' },
+      ]),
+      { x: -16, z: 14, w: 76, d: 9, y: 0, tex: 'grass' },
+    ],
+    walls: [
+      ...westEnd.walls, ...eastEnd.walls,
+      { x: -16, z: 13.6, w: 16, d: 0.3, y: 0, h: 0.7, tex: 'adobe' },
+      { x: 44, z: 13.6, w: 16, d: 0.3, y: 0, h: 0.7, tex: 'adobe' },
+    ],
+    roofs: [westEnd.roof, eastEnd.roof],
+    windows: [...westEnd.windows, ...eastEnd.windows],
+    props: [
+      { type: 'door', x: -7.5, z: FRONT - 0.62, w: 1.4, h: 2.6 },
+      { type: 'door', x: 51.3, z: FRONT - 0.62, w: 1.4, h: 2.6 },
+      { type: 'lantern', x: -10, z: FRONT + 0.6 },
+      { type: 'lantern', x: 54, z: FRONT + 0.6 },
+      { type: 'calesa', x: -4, z: 8.6, rot: 1 },
+      { type: 'barrel', x: 47, z: 4.5 },
+      { type: 'sacks', x: 56, z: 4.7 },
+      // the gardens beyond the near wall
+      { type: 'plant', x: 2, z: 14.5 },
+      { type: 'plant', x: 11, z: 14.5 },
+      { type: 'bench', x: 17, z: 14.6, w: 1.8 },
+      { type: 'plant', x: 23, z: 14.5 },
+      { type: 'plant', x: 33, z: 14.5 },
+      { type: 'plant', x: 42, z: 14.5 },
+      { type: 'palm', x: -8, z: 15.5 },
+      { type: 'palm', x: 7, z: 16.5 },
+      { type: 'palm', x: 28, z: 16.5 },
+      { type: 'palm', x: 50, z: 15.5 },
+    ],
+  },
   extras: [
     { id: 'vendor', costume: 'vendor', spot: 'vendor_stall', dir: 'down', activity: 'fan' },
     { id: 'cochero', costume: 'cochero', spot: 'cochero_seat', dir: 'left', activity: 'doze' },

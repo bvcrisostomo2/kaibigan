@@ -50,7 +50,41 @@ export const riverbank = {
   },
   // Intramuros across the Pasig: its wall rises straight from the water's far edge (the river
   // fronts the north wall), painted small so it reads as distant.
-  backdrop: { z: -6.05, x0: -25, x1: 55, seed: 11, y: -0.6, scale: 0.45 },
+  backdrop: { z: -6.05, x0: -45, x1: 75, seed: 11, y: -0.6, scale: 0.45 },
+  // The landing and the creek past both ends, more stilt houses on the far bank, and the foot of
+  // Capitan Tiago's row of houses behind the near wall: look only.
+  scenery: {
+    floors: [
+      { x: -16, z: 9.5, w: 16, d: 4.5, y: 0, tex: 'adobe' },
+      { x: 30, z: 9.5, w: 16, d: 4.5, y: 0, tex: 'adobe' },
+      { x: -16, z: 14, w: 62, d: 9, y: 0, tex: 'dirt' },
+    ],
+    walls: [
+      { x: -16, z: 13.7, w: 16, d: 0.3, y: 0, h: 0.6, tex: 'adobe' },
+      { x: 30, z: 13.7, w: 16, d: 0.3, y: 0, h: 0.6, tex: 'adobe' },
+      // the stone footings of Capitan Tiago's row, at the bottom edge of the view
+      { x: -16, z: 19, w: 62, d: 0.6, y: 0, h: 0.8, tex: 'adobe' },
+    ],
+    props: [
+      { type: 'stiltHouse', x: -11, z: 0.4, y: -0.6, w: 3.2, d: 2.4, seed: 6 },
+      { type: 'stiltHouse', x: -5.5, z: 0.8, y: -0.6, w: 2.8, d: 2.2, seed: 7 },
+      { type: 'stiltHouse', x: 35, z: 0.2, y: -0.6, w: 3.4, d: 2.6, seed: 8 },
+      { type: 'stiltHouse', x: 40.5, z: 0.7, y: -0.6, w: 3, d: 2.4, seed: 9 },
+      { type: 'banca', x: -7, z: 7.8, y: -0.55, rot: 1, len: 3 },
+      { type: 'banca', x: 37, z: 6.4, y: -0.55, rot: 1, len: 3.2 },
+      { type: 'mooringPost', x: -9, z: 9.8 },
+      { type: 'mooringPost', x: 36, z: 9.8 },
+      { type: 'tinaja', x: -3, z: 12.8 },
+      { type: 'crate', x: 33, z: 12.6 },
+      // behind the near wall, along the houses' backs
+      { type: 'palm', x: -4, z: 16 },
+      { type: 'palm', x: 9, z: 16.5 },
+      { type: 'tinaja', x: 14, z: 15 },
+      { type: 'palm', x: 22, z: 16 },
+      { type: 'plant', x: 31, z: 14.6 },
+      { type: 'palm', x: 40, z: 16.5 },
+    ],
+  },
   extras: [
     { id: 'washerwoman', costume: 'washerwoman', spot: 'washerwoman_steps', dir: 'down', activity: 'wash' },
     { id: 'fisherman', costume: 'fisherman', spot: 'fisherman_bridge', dir: 'right' },

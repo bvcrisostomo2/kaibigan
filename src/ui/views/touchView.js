@@ -1,32 +1,42 @@
-// Touch controls (spec §4.3): a joystick bottom-left, Talk bottom-right, Journal and Menu
-// top-right. Shown only on touch devices. Drags go through stickVector (touchControls.js).
+// Touch controls (spec §4.3): a joystick that comes to the left thumb, Talk bottom-right, Journal
+// and Menu top-right. Shown only on touch devices. Drags go through stickVector (touchControls.js).
 import { h } from '../dom.js';
 import { stickVector, STICK_RADIUS } from '../touchControls.js';
-import { isTurned, unturn } from '../landscape.js';
+import { isTurned, unturn, toLocal } from '../landscape.js';
 
 // onMove(x, z) for input.setVirtualMove; onPress(button) for input.press.
 export function createTouchView(root, { labels, onMove, onPress }) {
+  // The stick floats: a touch anywhere in the zone (the left of the screen) puts it under the
+  // thumb, and letting go sends it back to rest bottom-left.
   const knob = h('div', { class: 'ui-stick-knob' });
   const stick = h('div', { class: 'ui-stick', 'aria-hidden': 'true' }, knob);
+  const zone = h('div', { class: 'ui-stick-zone' }, stick);
   let pointer = null;
   let centre = null;
   const release = () => {
     pointer = null;
     knob.style.transform = '';
+    stick.classList.remove('is-active');
+    stick.style.left = '';
+    stick.style.top = '';
     onMove(0, 0);
   };
-  stick.addEventListener('pointerdown', (e) => {
+  zone.addEventListener('pointerdown', (e) => {
+    if (pointer != null) return;
     pointer = e.pointerId;
-    const r = stick.getBoundingClientRect();
-    centre = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    centre = { x: e.clientX, y: e.clientY };
+    const at = toLocal(e.clientX, e.clientY, zone.getBoundingClientRect(), isTurned());
+    stick.style.left = `${at.x - stick.offsetWidth / 2}px`;
+    stick.style.top = `${at.y - stick.offsetHeight / 2}px`;
+    stick.classList.add('is-active');
     try {
-      stick.setPointerCapture(e.pointerId);
+      zone.setPointerCapture(e.pointerId);
     } catch {
       // The pointer is already gone (or synthetic): the drag still works without capture.
     }
     e.preventDefault();
   });
-  stick.addEventListener('pointermove', (e) => {
+  zone.addEventListener('pointermove', (e) => {
     if (e.pointerId !== pointer) return;
     // The finger moves on the screen; when the game is drawn turned, turn that back.
     const d = unturn(e.clientX - centre.x, e.clientY - centre.y, isTurned());
@@ -34,8 +44,11 @@ export function createTouchView(root, { labels, onMove, onPress }) {
     knob.style.transform = `translate(${v.x * STICK_RADIUS}px, ${v.z * STICK_RADIUS}px)`;
     onMove(v.x, v.z);
   });
-  stick.addEventListener('pointerup', release);
-  stick.addEventListener('pointercancel', release);
+  const end = (e) => {
+    if (e.pointerId === pointer) release();
+  };
+  zone.addEventListener('pointerup', end);
+  zone.addEventListener('pointercancel', end);
 
   const button = (cls, label, press) => h('button', {
     type: 'button',
@@ -46,7 +59,7 @@ export function createTouchView(root, { labels, onMove, onPress }) {
     },
   }, label);
   const el = h('div', { class: 'ui-screen ui-touch' },
-    stick,
+    zone,
     button('is-talk', labels.talk, 'interact'),
     h('div', { class: 'ui-touch-top' }, button('', labels.journal, 'journal'), button('', labels.menu, 'menu')));
   root.append(el);

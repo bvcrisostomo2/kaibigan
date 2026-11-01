@@ -239,8 +239,11 @@
 
 /* Touch controls */
 .ui-touch { pointer-events: none; }
-.ui-touch.is-blocked .ui-stick, .ui-touch.is-blocked .is-talk { display: none; }
-.ui-stick { position: absolute; left: 24px; bottom: 24px; width: 120px; height: 120px; border-radius: 50%; background: rgba(239, 224, 189, 0.25); border: 2px solid rgba(239, 224, 189, 0.6); pointer-events: auto; touch-action: none; }
+.ui-touch.is-blocked .ui-stick-zone, .ui-touch.is-blocked .is-talk { display: none; }
+/* The left of the screen below the top buttons: a touch there brings the stick to the thumb. */
+.ui-stick-zone { position: absolute; left: 0; bottom: 0; width: 45%; height: calc(100% - 64px); pointer-events: auto; touch-action: none; }
+.ui-stick { position: absolute; left: 24px; bottom: 24px; width: 120px; height: 120px; border-radius: 50%; background: rgba(239, 224, 189, 0.25); border: 2px solid rgba(239, 224, 189, 0.6); pointer-events: none; opacity: 0.6; transition: opacity 0.15s; }
+.ui-stick.is-active { bottom: auto; opacity: 1; }
 .ui-stick-knob { position: absolute; left: 36px; top: 36px; width: 48px; height: 48px; border-radius: 50%; background: rgba(239, 224, 189, 0.8); border: 2px solid var(--edge); }
 .ui-touch-button { position: absolute; pointer-events: auto; touch-action: none; background: var(--paper); border: 2px solid var(--edge); border-radius: 50%; width: 64px; height: 64px; font-size: 13px; }
 .ui-touch-button.is-talk { right: 28px; bottom: 40px; width: 84px; height: 84px; background: var(--wax); color: var(--wax-ink); font-size: 16px; }

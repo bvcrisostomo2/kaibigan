@@ -208,3 +208,54 @@ describe('buildWorld level checks', () => {
     expect(() => buildWorld({ floors, stairs: [stair] })).toThrow('overlaps the stair at x 4, z 4 at its top');
   });
 });
+
+describe('buildWorld: scenery past a map', () => {
+  // The street carries on past its ends and its near edge, to look at only.
+  const level = {
+    maps: {
+      street: {
+        offset: [0, 0],
+        camera: 'outdoor',
+        bounds: { x: 0, z: 0, w: 10, d: 8 },
+        floors: [{ x: 0, z: 0, w: 10, d: 8, y: 0, tex: 'cobble' }],
+        scenery: {
+          floors: [{ x: 10, z: 0, w: 6, d: 8, y: 0, tex: 'cobble' }],
+          walls: [{ x: 10, z: 0, w: 6, d: 2, y: 0, h: 5, tex: 'plaster' }],
+          roofs: [{ x: 10, z: -0.2, w: 6, d: 2.4, y: 5, rise: 1.5, tex: 'roof', axis: 'x' }],
+          windows: [{ x: 13, z: 2.01, y: 2, w: 1, h: 1.4, facing: 's' }],
+          props: [{ type: 'palm', x: 5, z: 9 }, { type: 'lantern', x: 12, z: 6 }],
+        },
+        spots: { start: [5, 4] },
+      },
+    },
+    spawn: 'start',
+  };
+  const world = buildWorld(level);
+  const meshesIn = (group) => {
+    let n = 0;
+    group.traverse((o) => { if (o.isMesh) n++; });
+    return n;
+  };
+
+  it('draws it with the map', () => {
+    const bare = buildWorld({ ...level, maps: { street: { ...level.maps.street, scenery: undefined } } });
+    expect(meshesIn(world.maps.street.group)).toBeGreaterThan(meshesIn(bare.maps.street.group) + 6);
+    expect(world.windowMaterials).toHaveLength(1); // its windows glow at night like the rest
+  });
+
+  it('moves the dark curtains out past it, so they never hide it', () => {
+    const curtains = {};
+    world.maps.street.group.traverse((o) => { if (o.userData.curtain) curtains[o.userData.curtain] = o.position.x; });
+    expect(curtains.west).toBeLessThanOrEqual(-0.5); // the map starts at x 0
+    expect(curtains.east).toBeGreaterThanOrEqual(16); // the scenery reaches x 16
+  });
+
+  it('is never walked on and never blocks', () => {
+    expect(world.collision.heightAt(13, 5, 0)).toBeNull(); // the scenery's cobbles are not a floor
+    expect(world.collision.heightAt(5, 9, 0)).toBeNull();
+    const p = new THREE.Vector3(9.4, 0, 4);
+    const next = world.collision.move(p, 1, 0);
+    expect(next.x).toBeLessThanOrEqual(10.01); // stopped at the map's own edge, not by a wall
+    expect(world.collision.blocked?.(5, 9, 0) ?? false).toBe(false); // the palm has no footprint here
+  });
+});
