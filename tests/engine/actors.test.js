@@ -295,3 +295,27 @@ describe('movements while talking', () => {
     expect(a.sprite.material.map.offset.x).toBeCloseTo(0); // back to idle_down
   });
 });
+
+describe('the outline that shows the player through scenery', () => {
+  const sheet = () => ({
+    texture: new THREE.Texture(), cellW: 48, cellH: 64, cols: 4, rows: 4, footMargin: 2,
+    anims: { idle_down: [{ col: 0, row: 0 }], walk_down: [{ col: 0, row: 1 }] },
+  });
+
+  it('draws a silhouette only where something stands in front of the sprite', () => {
+    registerSheet('test', sheet());
+    const a = createActor({ id: 'player', costume: 'test', outline: true });
+    const outline = a.sprite.children.find((c) => c.isMesh);
+    expect(outline).toBeDefined();
+    expect(outline.material.depthFunc).toBe(THREE.GreaterDepth);
+    expect(outline.material.depthWrite).toBe(false);
+    expect(outline.material.map).toBe(a.sprite.material.map); // follows the sprite's frame
+    expect(outline.geometry).toBe(a.sprite.geometry); // and its movements, as its child
+    expect(outline.renderOrder).toBeGreaterThan(0); // after what hides it
+  });
+
+  it('gives no one else an outline', () => {
+    registerSheet('test', sheet());
+    expect(createActor({ id: 'ibarra', costume: 'test' }).sprite.children.filter((c) => c.isMesh)).toHaveLength(0);
+  });
+});

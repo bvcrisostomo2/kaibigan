@@ -99,8 +99,27 @@ function blob() {
   return blobTexture;
 }
 
-// turnSeconds > 0 turns through each in-between facing instead of snapping.
-export function createActor({ id, costume, position = new THREE.Vector3(), dir = 'down', turnSeconds = 0 }) {
+export const OUTLINE_COLOR = '#f3e6cf';
+
+// A flat silhouette of the sprite, drawn only where something stands in front of it (the depth
+// test passes where the scene is nearer), so the player can be found behind scenery.
+function outlineOf(sprite, tex) {
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex, color: OUTLINE_COLOR, transparent: true, opacity: 0.6, alphaTest: 0.25,
+    depthFunc: THREE.GreaterDepth, depthWrite: false, side: THREE.DoubleSide,
+  });
+  // Only the sprite's shape: its alpha, not its colours.
+  mat.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', 'diffuseColor.a *= texture2D( map, vMapUv ).a;');
+  };
+  const mesh = new THREE.Mesh(sprite.geometry, mat);
+  mesh.renderOrder = 10;
+  return mesh;
+}
+
+// turnSeconds > 0 turns through each in-between facing instead of snapping. outline: the player's
+// silhouette shows through scenery that hides them.
+export function createActor({ id, costume, position = new THREE.Vector3(), dir = 'down', turnSeconds = 0, outline = false }) {
   const sheet = sheetFor(costume);
   const tex = sheet.texture.clone();
   tex.needsUpdate = true;
@@ -112,6 +131,7 @@ export function createActor({ id, costume, position = new THREE.Vector3(), dir =
   const sprite = new THREE.Mesh(geo, mat);
   sprite.castShadow = true;
   sprite.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: 0.5 });
+  if (outline) sprite.add(outlineOf(sprite, tex));
 
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.45), new THREE.MeshBasicMaterial({ map: blob(), transparent: true, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2;

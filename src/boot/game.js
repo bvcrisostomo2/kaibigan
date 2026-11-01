@@ -79,14 +79,14 @@ export async function startGame(container, content) {
   const size = view.resize();
   const cam = createFollowCamera(size.width / size.height);
 
-  let player = createActor({ id: 'player', costume: 'player_don', position: world.spawn.clone() });
+  let player = createActor({ id: 'player', costume: 'player_don', position: world.spawn.clone(), outline: true });
   scene.add(player.object);
   const actors = new Map([['player', player]]);
   // Don or Doña: the player's sheet is fixed per actor, so a new title means a new actor.
   function dressPlayer(costume) {
     if (player.costume === costume) return;
     scene.remove(player.object);
-    player = createActor({ id: 'player', costume, position: player.position.clone() });
+    player = createActor({ id: 'player', costume, position: player.position.clone(), outline: true });
     scene.add(player.object);
     actors.set('player', player);
     cam.follow(player.object, { snap: true });

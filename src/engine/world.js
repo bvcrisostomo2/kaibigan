@@ -31,6 +31,8 @@
 //   backdrop: { z, x0, x1, seed, y?, scale? }             the painted city on the water's far edge (z,
 //            at its level y), drawn at scale; hills and sky behind
 //   zoneCameras: { zone: preset }                         zones framed differently (the azotea looks out)
+//   scenery: { floors?, walls?, roofs?, windows?, props? } more of the place past the map's edges (the
+//            street carrying on, the near kerb), drawn like the rest but never walked on or solid
 import * as THREE from 'three';
 import { createCollision, stairFloorOverlaps } from './collision.js';
 import { makeProp, material, tiledBox } from '../art/props.js';
@@ -105,8 +107,18 @@ export function buildWorld(level) {
     group.add(g);
     const b = moved(map.bounds ?? floorExtent(map), off);
     info[id] = { id, name: map.name ?? null, detail: map.detail ?? null, camera: map.camera ?? 'indoor', zoneCameras: map.zoneCameras ?? {}, bounds: b, group: g };
+    // The map's own parts and its scenery: scenery is drawn the same way, but its floors aren't in
+    // the collision (gathered above) and its walls and props never block.
+    const scenery = map.scenery ?? {};
+    const parts = {
+      floors: [...(map.floors ?? []), ...(scenery.floors ?? [])],
+      walls: [...(map.walls ?? []), ...(scenery.walls ?? []).map((w) => ({ ...w, collide: false }))],
+      roofs: [...(map.roofs ?? []), ...(scenery.roofs ?? [])],
+      windows: [...(map.windows ?? []), ...(scenery.windows ?? [])],
+      props: [...(map.props ?? []), ...(scenery.props ?? []).map((p) => ({ ...p, y: p.y ?? 0, collide: false }))],
+    };
 
-    for (const f0 of map.floors ?? []) {
+    for (const f0 of parts.floors) {
       const f = moved(f0, off);
       const thick = f.thick ?? 0.25;
       const mesh = tiledBox(f.w, thick, f.d, material(f.tex));
@@ -132,7 +144,7 @@ export function buildWorld(level) {
       }
     }
 
-    for (const w0 of map.walls ?? []) {
+    for (const w0 of parts.walls) {
       const w = moved(w0, off);
       const mesh = tiledBox(w.w, w.h, w.d, material(w.tex));
       mesh.position.set(w.x + w.w / 2, w.y + w.h / 2, w.z + w.d / 2);
@@ -141,7 +153,7 @@ export function buildWorld(level) {
       if (w.collide !== false) blockers.push({ x: w.x, z: w.z, w: w.w, d: w.d, y0: w.y, y1: w.y + w.h });
     }
 
-    for (const r0 of map.roofs ?? []) {
+    for (const r0 of parts.roofs) {
       const r = moved(r0, off);
       const roof = new THREE.Group();
       const along = r.axis === 'z' ? r.d : r.w;
@@ -163,7 +175,7 @@ export function buildWorld(level) {
       g.add(roof);
     }
 
-    for (const w0 of map.windows ?? []) {
+    for (const w0 of parts.windows) {
       const w = moved(w0, off);
       const mat = new THREE.MeshLambertMaterial({ map: tileTexture('capiz'), emissive: new THREE.Color('#ffb060'), emissiveMap: tileTexture('capiz'), emissiveIntensity: 0 });
       windowMaterials.push(mat);
@@ -192,7 +204,7 @@ export function buildWorld(level) {
       g.add(mesh);
     }
 
-    for (const p0 of map.props ?? []) {
+    for (const p0 of parts.props) {
       const p = moved(p0, off);
       const prop = makeProp(p.type, p);
       const y = p.y ?? collision.heightAt(p.x, p.z, p.floorY ?? 0) ?? 0;
@@ -215,7 +227,11 @@ export function buildWorld(level) {
     if (map.backdrop) g.add(buildBackdrop(moved(map.backdrop, off), map.backdrop, off, skyMaterials));
     const lowest = Math.min(0, ...(map.floors ?? []).map((f) => f.y - (f.thick ?? 0.25)), ...(map.stairs ?? []).map((s) => Math.min(s.y0, s.y1)), ...(map.water ?? []).map((w) => w.y));
     g.add(buildBase(b, map.camera ?? 'indoor', lowest - 0.1));
-    if (level.maps) for (const c of buildCurtains(b, !map.backdrop && !(map.water ?? []).length)) g.add(c);
+    // The curtains stand past the scenery, if the map has any, so they never hide it.
+    const seen = (scenery.floors ?? []).map((f) => moved(f, off));
+    const x0 = Math.min(b.x, ...seen.map((f) => f.x));
+    const x1 = Math.max(b.x + b.w, ...seen.map((f) => f.x + f.w));
+    if (level.maps) for (const c of buildCurtains({ ...b, x: x0, w: x1 - x0 }, !map.backdrop && !(map.water ?? []).length)) g.add(c);
 
     for (const [name, s] of Object.entries(map.spots ?? {})) spotList.push([name, [s[0] + off[0], s[1] + off[1], s[2]]]);
     for (const e of map.extras ?? []) extras.push({ ...e, map: id });
