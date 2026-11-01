@@ -41,7 +41,7 @@ import { composeHost, routePresses } from '../ui/host.js';
 import { loadSettings, saveSettings, adjustSetting } from '../ui/settings.js';
 import { markersFor, talkTarget } from '../ui/markers.js';
 import { t } from '../ui/strings.js';
-import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer, enteredDoor } from './rules.js';
+import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer, enteredDoor, storyTime } from './rules.js';
 
 const LOOK_RANGE = 3; // characters turn to face the player this close
 const MARKER_HEIGHT = 1.9; // world units above a person's feet for "!" / "…"
@@ -396,7 +396,7 @@ export async function startGame(container, content) {
         game.zone = zone;
         game.director.setZone(zone).catch(reportError);
       }
-      if (playing) game.director.update(dt).catch(reportError);
+      if (playing) game.director.update(storyTime(dt, world.maps[currentMap]?.camera)).catch(reportError);
       game.ui.update(dt);
       game.ui.setMarkers(screenMarkers(targets()));
       if (fps.sample(dt) && settings.quality === 'high') game.ui.notify(t('toast.lowFps'));

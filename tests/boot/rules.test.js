@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer, enteredDoor } from '../../src/boot/rules.js';
+import { spawnPoint, ambienceFor, inPlay, placePlayer, turnsToPlayer, enteredDoor, storyTime } from '../../src/boot/rules.js';
 
 describe('spawnPoint', () => {
   const chapter = { beats: [{ id: 'a', spawn: 'door' }, { id: 'b' }, { id: 'c', spawn: 'gone' }] };
@@ -78,5 +78,14 @@ describe('enteredDoor', () => {
     expect(enteredDoor(world, { z: 2 }, { z: 0.5 })).toBe(door);
     expect(enteredDoor(world, { z: 0.6 }, { z: 0.5 })).toBe(null); // already standing in it
     expect(enteredDoor(world, { z: 3 }, { z: 2 })).toBe(null);
+  });
+});
+
+describe('storyTime', () => {
+  it("runs the story's clock indoors, where every scene happens, and holds it outdoors", () => {
+    // A scene that starts after a while must not pull the player in off the street.
+    expect(storyTime(0.5, 'indoor')).toBe(0.5);
+    expect(storyTime(0.5, 'outdoor')).toBe(0);
+    expect(storyTime(0.5, undefined)).toBe(0.5); // no map: as before
   });
 });
